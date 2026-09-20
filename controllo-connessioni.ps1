@@ -22,6 +22,11 @@
 # The whitelist stores the PATH + SHA256 HASH of the file: if the
 # file is replaced or modified, it is flagged again.
 #
+# A JSON report is also saved next to this script
+# (outbound-connection-report.json). Open index.html (the static
+# report viewer) and load that file to browse, filter and export
+# the results. The report is written before any action is taken.
+#
 # LIMITATIONS: this is a snapshot of the moment. It does not see
 # UDP connections (e.g. browser QUIC/HTTP3) or very short-lived
 # ones. A signed program, or code injected into a legitimate
@@ -65,6 +70,14 @@ $scriptFolder = $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($scriptFolder)) {
     $scriptFolder = (Get-Location).Path
 }
+
+# JSON report for the web viewer (index.html).
+# Set $exportReport to $false to disable it.
+# The report is saved next to this script, like whitelist.txt.
+# It contains process names, paths, hashes and remote IPs: it is never
+# sent anywhere, and .gitignore keeps it out of the repository.
+$exportReport = $true
+$reportFile = Join-Path $scriptFolder "outbound-connection-report.json"
 
 $whitelistFile = Join-Path $scriptFolder "whitelist.txt"
 $quarantineFolder = Join-Path $scriptFolder "Quarantine"
@@ -289,6 +302,65 @@ function Add-WhitelistEntry {
 }
 
 # ------------------------------------------------------------
+# FUNCTION: saves the analysis as a JSON report for index.html
+# ------------------------------------------------------------
+function Export-Report {
+
+    param (
+        [object[]]$Rows,
+        [int]$TotalConnections
+    )
+
+    if (-not $exportReport) {
+        return
+    }
+
+    try {
+
+        # Explicit property list = stable format for the viewer.
+        # @() keeps "connections" an array even with 0 or 1 rows.
+        $report = [ordered]@{
+            schema           = "outbound-connection-auditor/1"
+            generated        = (Get-Date).ToString("yyyy-MM-dd'T'HH:mm:sszzz")
+            isAdmin          = $isAdmin
+            totalConnections = $TotalConnections
+            connections      = @(
+                $Rows |
+                Select-Object `
+                    PID,
+                    Process,
+                    Remote_IP,
+                    Remote_Port,
+                    Local_Port,
+                    Status,
+                    Signature,
+                    Publisher,
+                    Company,
+                    Version,
+                    Hash,
+                    Note,
+                    Path
+            )
+        }
+
+        $json = ConvertTo-Json -InputObject $report -Depth 4
+
+        # UTF-8 without BOM
+        [System.IO.File]::WriteAllText(
+            $reportFile,
+            $json,
+            (New-Object System.Text.UTF8Encoding($false))
+        )
+
+        Write-Host "JSON report saved: $reportFile" -ForegroundColor DarkGray
+        Write-Host "Open index.html and load this file to browse the results." -ForegroundColor DarkGray
+    }
+    catch {
+        Write-Host "[WARNING] Could not save the JSON report: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+}
+
+# ------------------------------------------------------------
 # LOAD THE WHITELIST (if it exists)
 # ------------------------------------------------------------
 # $whitelistEntries : key "path|HASH" -> approved
@@ -353,6 +425,10 @@ $connections = @(
 if ($connections.Count -eq 0) {
 
     Write-Host "[OK] No active external TCP connection found." -ForegroundColor Green
+    Write-Host ""
+
+    Export-Report -Rows @() -TotalConnections 0
+
     Write-Host ""
     Write-Host "Analysis complete." -ForegroundColor Yellow
 
@@ -808,6 +884,12 @@ Write-Host ""
 Write-Host "External TCP connections found : $totalConnections"
 Write-Host "Rows after removing duplicates : $($finalTable.Count)"
 Write-Host "Distinct processes             : $($processCache.Count)"
+Write-Host ""
+
+# Save the JSON report now, BEFORE any process is terminated,
+# so it describes exactly what was found by this analysis
+Export-Report -Rows $finalTable -TotalConnections $totalConnections
+
 Write-Host ""
 
 # ------------------------------------------------------------

@@ -1,89 +1,88 @@
 # ============================================================
-# FALSE POSITIVE - HARMLESS TEST FOR controllo-connessioni.ps1
+# FALSO POSITIVO - TEST INNOCUO PER controllo-connessioni.ps1
 # ============================================================
-# What it does:
-#   1. Compiles a tiny UNSIGNED program in a "temp" subfolder
-#      inside .\fake_process (i.e. next to this script).
-#      The name "temp" in the path, together with the missing
-#      signature, makes it "suspicious" for controllo-connessioni.ps1.
-#   2. Starts it: the program opens ONE TCP connection to a public
-#      test site and keeps it open.
-#   3. Waits while you run run.bat and check the result.
-#   4. At the end (ENTER, CTRL+C or time expired) it stops the
-#      program and deletes the compiled file.
+# Cosa fa:
+#   1. Compila un minuscolo programma NON FIRMATO in una sottocartella
+#      "temp" dentro .\fake_process (cioe' accanto a questo script).
+#      Il nome "temp" nel percorso, insieme alla firma assente, lo
+#      rende "sospetto" per controllo-connessioni.ps1.
+#   2. Lo avvia: il programma apre UNA connessione TCP verso un
+#      sito di test pubblico e la mantiene aperta.
+#   3. Aspetta che tu lanci run.bat e controlli il risultato.
+#   4. Alla fine (INVIO, CTRL+C o tempo scaduto) ferma il programma
+#      e cancella il file compilato.
 #
-# What it does NOT do:
-#   - it does not modify the system, the registry or your files
-#   - it does not download or send any data of yours: it only sends
-#     an HTTP "HEAD /" request every 5 seconds to $TestHost
-#   - it does not keep running: it stops by itself after
-#     $MaxDurationSeconds
+# Cosa NON fa:
+#   - non modifica il sistema, il registro o i tuoi file
+#   - non scarica ne' invia dati tuoi: manda solo una richiesta
+#     HTTP "HEAD /" ogni 5 secondi a $HostTest
+#   - non resta in esecuzione: si ferma da solo dopo $DurataMaxSecondi
 #
-# Expected outcome in controllo-connessioni.ps1:
-#   Process: falso_positivo_test
-#   Status : SUSPICIOUS (path/signature)
+# Esito atteso in controllo-connessioni.ps1:
+#   Processo: falso_positivo_test
+#   Esito   : SOSPETTO (percorso/firma)
 #
-# NOTE: requires Windows PowerShell 5.1 (the one started by
-# falso_positivo.bat), not PowerShell 7.
+# NOTA: richiede Windows PowerShell 5.1 (quello avviato da
+# falso_positivo.bat), non PowerShell 7.
 # ============================================================
 
 # ------------------------------------------------------------
-# CONFIGURATION
+# CONFIGURAZIONE
 # ------------------------------------------------------------
 
-# Test site: example.com is a domain reserved by IANA
-# precisely for tests and documentation.
-$TestHost = "example.com"
-$TestPort = 80
+# Sito di test: example.com e' un dominio riservato dallo IANA
+# proprio per prove e documentazione.
+$HostTest = "example.com"
+$PortaTest = 80
 
-# Maximum test duration (then the program stops by itself)
-$MaxDurationSeconds = 300
+# Durata massima del test (poi il programma si ferma da solo)
+$DurataMaxSecondi = 300
 
-# Script folder (same as falso_positivo.bat)
-$scriptFolder = $PSScriptRoot
-if ([string]::IsNullOrWhiteSpace($scriptFolder)) {
-    $scriptFolder = (Get-Location).Path
+# Cartella dello script (stessa di falso_positivo.bat)
+$cartellaScript = $PSScriptRoot
+if ([string]::IsNullOrWhiteSpace($cartellaScript)) {
+    $cartellaScript = (Get-Location).Path
 }
 
-# Path of the test program: .\fake_process\temp\
-# WARNING: the subfolder must be called "temp" (or "downloads"):
-# controllo-connessioni.ps1 considers an unsigned program SUSPICIOUS
-# only if its path contains \temp\, \downloads\ or \appdata\.
-# In a "normal" folder it would only be classified as TO CHECK.
-$exeName = "falso_positivo_test.exe"
-$fakeFolder = Join-Path $scriptFolder "fake_process"
-$testFolder = Join-Path $fakeFolder "temp"
-$exePath = Join-Path $testFolder $exeName
+# Percorso del programma di test: .\fake_process\temp\
+# ATTENZIONE: la sottocartella deve chiamarsi "temp" (o "downloads"):
+# controllo-connessioni.ps1 considera SOSPETTO un programma non firmato
+# solo se il percorso contiene \temp\, \downloads\ o \appdata\.
+# In una cartella "normale" verrebbe classificato solo DA VERIFICARE.
+$nomeExe = "falso_positivo_test.exe"
+$cartellaFake = Join-Path $cartellaScript "fake_process"
+$cartellaTest = Join-Path $cartellaFake "temp"
+$exePath = Join-Path $cartellaTest $nomeExe
 
 # ------------------------------------------------------------
-# C# CODE OF THE TEST PROGRAM
+# CODICE C# DEL PROGRAMMA DI TEST
 # ------------------------------------------------------------
-# Opens a TCP connection, sends a HEAD request every 5 seconds
-# to keep it alive and, if the server closes it, reopens it.
-# When the time is up, it exits.
+# Apre una connessione TCP, invia una richiesta HEAD ogni 5
+# secondi per tenerla viva e, se il server la chiude, la riapre.
+# Finito il tempo, esce.
 
-$csharpCode = @'
+$codiceCSharp = @'
 using System;
 using System.IO;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 
-public static class FalsePositiveTest
+public static class FalsoPositivoTest
 {
     public static int Main(string[] args)
     {
         string host = "example.com";
-        int port = 80;
-        int seconds = 120;
+        int porta = 80;
+        int secondi = 120;
 
         if (args.Length > 0) { host = args[0]; }
-        if (args.Length > 1) { int.TryParse(args[1], out port); }
-        if (args.Length > 2) { int.TryParse(args[2], out seconds); }
+        if (args.Length > 1) { int.TryParse(args[1], out porta); }
+        if (args.Length > 2) { int.TryParse(args[2], out secondi); }
 
-        DateTime end = DateTime.UtcNow.AddSeconds(seconds);
+        DateTime fine = DateTime.UtcNow.AddSeconds(secondi);
 
-        byte[] request = Encoding.ASCII.GetBytes(
+        byte[] richiesta = Encoding.ASCII.GetBytes(
             "HEAD / HTTP/1.1\r\nHost: " + host +
             "\r\nConnection: keep-alive\r\n\r\n");
 
@@ -91,33 +90,33 @@ public static class FalsePositiveTest
         TcpClient client = null;
         NetworkStream stream = null;
 
-        while (DateTime.UtcNow < end)
+        while (DateTime.UtcNow < fine)
         {
             try
             {
                 if (client == null)
                 {
                     client = new TcpClient();
-                    client.Connect(host, port);
+                    client.Connect(host, porta);
                     stream = client.GetStream();
                     stream.ReadTimeout = 3000;
                 }
 
-                stream.Write(request, 0, request.Length);
+                stream.Write(richiesta, 0, richiesta.Length);
 
-                int bytesRead = 0;
+                int letti = 0;
                 try
                 {
-                    bytesRead = stream.Read(buffer, 0, buffer.Length);
+                    letti = stream.Read(buffer, 0, buffer.Length);
                 }
                 catch (IOException)
                 {
-                    // No reply within the timeout: try again next round
-                    bytesRead = -1;
+                    // Nessuna risposta entro il timeout: riprovo al giro dopo
+                    letti = -1;
                 }
 
-                // 0 bytes = the server closed the connection: reopen it
-                if (bytesRead == 0)
+                // 0 byte = il server ha chiuso la connessione: la riapro
+                if (letti == 0)
                 {
                     client.Close();
                     client = null;
@@ -148,16 +147,16 @@ public static class FalsePositiveTest
 Clear-Host
 
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "   FALSE POSITIVE - HARMLESS TEST" -ForegroundColor Cyan
+Write-Host "   FALSO POSITIVO - TEST INNOCUO" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "For a few minutes, this test creates a harmless TCP connection" -ForegroundColor Yellow
-Write-Host "to ${TestHost}:${TestPort} from an UNSIGNED program located in" -ForegroundColor Yellow
-Write-Host ".\fake_process\temp (next to this script)." -ForegroundColor Yellow
-Write-Host "It is used to check that controllo-connessioni flags it as" -ForegroundColor Yellow
-Write-Host "SUSPICIOUS. Everything is cleaned up at the end of the test." -ForegroundColor Yellow
+Write-Host "Questo test crea per pochi minuti una connessione TCP innocua" -ForegroundColor Yellow
+Write-Host "verso ${HostTest}:${PortaTest} da un programma NON FIRMATO che" -ForegroundColor Yellow
+Write-Host "si trova in .\fake_process\temp (accanto a questo script)." -ForegroundColor Yellow
+Write-Host "Serve a verificare che controllo-connessioni lo segnali come" -ForegroundColor Yellow
+Write-Host "SOSPETTO. A fine test viene tutto ripulito." -ForegroundColor Yellow
 Write-Host ""
-Write-Host "Press ENTER to start the test (CTRL+C to cancel)..."
+Write-Host "Premi INVIO per avviare il test (CTRL+C per annullare)..."
 [void](Read-Host)
 
 $proc = $null
@@ -165,7 +164,7 @@ $proc = $null
 try {
 
     # --------------------------------------------------------
-    # Remove any leftovers from a previous test
+    # Rimuove eventuali residui di un test precedente
     # --------------------------------------------------------
 
     if (Test-Path -LiteralPath $exePath) {
@@ -173,67 +172,67 @@ try {
         Remove-Item -LiteralPath $exePath -Force -ErrorAction SilentlyContinue
 
         if (Test-Path -LiteralPath $exePath) {
-            Write-Host "[ERROR] Cannot remove the old test file:" -ForegroundColor Red
-            Write-Host "        $exePath" -ForegroundColor Red
-            Write-Host "        Close the 'falso_positivo_test' process and try again." -ForegroundColor Red
+            Write-Host "[ERRORE] Non riesco a rimuovere il vecchio file di test:" -ForegroundColor Red
+            Write-Host "         $exePath" -ForegroundColor Red
+            Write-Host "         Chiudi il processo 'falso_positivo_test' e riprova." -ForegroundColor Red
             return
         }
     }
 
     # --------------------------------------------------------
-    # Compile the test program in .\fake_process\temp
+    # Compila il programma di test in .\fake_process\temp
     # --------------------------------------------------------
 
     Write-Host ""
-    Write-Host "Compiling the test program..." -ForegroundColor Yellow
+    Write-Host "Compilazione del programma di test..." -ForegroundColor Yellow
 
-    # Create the .\fake_process\temp folder if it does not exist
-    if (-not (Test-Path -LiteralPath $testFolder)) {
+    # Crea la cartella .\fake_process\temp se non esiste
+    if (-not (Test-Path -LiteralPath $cartellaTest)) {
         New-Item `
             -ItemType Directory `
-            -Path $testFolder `
+            -Path $cartellaTest `
             -Force |
             Out-Null
     }
 
     try {
         Add-Type `
-            -TypeDefinition $csharpCode `
+            -TypeDefinition $codiceCSharp `
             -OutputAssembly $exePath `
             -OutputType ConsoleApplication `
             -ErrorAction Stop
     }
     catch {
-        Write-Host "[ERROR] Compilation failed:" -ForegroundColor Red
+        Write-Host "[ERRORE] Compilazione non riuscita:" -ForegroundColor Red
         Write-Host $_.Exception.Message -ForegroundColor Red
         return
     }
 
     if (-not (Test-Path -LiteralPath $exePath)) {
-        Write-Host "[ERROR] The test file was not created." -ForegroundColor Red
+        Write-Host "[ERRORE] Il file di test non e' stato creato." -ForegroundColor Red
         return
     }
 
-    Write-Host "Created: $exePath" -ForegroundColor Green
+    Write-Host "Creato: $exePath" -ForegroundColor Green
 
     # --------------------------------------------------------
-    # Start the test program (hidden window)
+    # Avvia il programma di test (finestra nascosta)
     # --------------------------------------------------------
 
     $proc = Start-Process `
         -FilePath $exePath `
-        -ArgumentList @($TestHost, $TestPort, $MaxDurationSeconds) `
+        -ArgumentList @($HostTest, $PortaTest, $DurataMaxSecondi) `
         -WindowStyle Hidden `
         -PassThru
 
-    Write-Host "Test program started (PID $($proc.Id))." -ForegroundColor Green
-    Write-Host "Waiting for the connection to be established..." -ForegroundColor Yellow
+    Write-Host "Programma di test avviato (PID $($proc.Id))." -ForegroundColor Green
+    Write-Host "Attendo che la connessione risulti stabilita..." -ForegroundColor Yellow
 
     # --------------------------------------------------------
-    # Check that the connection is really ESTABLISHED
+    # Verifica che la connessione sia davvero ESTABLISHED
     # --------------------------------------------------------
 
-    $connection = $null
+    $connessione = $null
 
     for ($i = 0; $i -lt 30; $i++) {
 
@@ -243,64 +242,64 @@ try {
             break
         }
 
-        $connection = Get-NetTCPConnection `
+        $connessione = Get-NetTCPConnection `
             -OwningProcess $proc.Id `
             -State Established `
             -ErrorAction SilentlyContinue |
             Select-Object -First 1
 
-        if ($connection) {
+        if ($connessione) {
             break
         }
     }
 
     Write-Host ""
 
-    if ($connection) {
+    if ($connessione) {
 
         Write-Host "============================================================" -ForegroundColor Green
-        Write-Host "[OK] Test connection ACTIVE" -ForegroundColor Green
-        Write-Host "     PID     : $($proc.Id)" -ForegroundColor Green
-        Write-Host "     Remote  : $($connection.RemoteAddress):$($connection.RemotePort)" -ForegroundColor Green
-        Write-Host "     Program : $exePath" -ForegroundColor Green
+        Write-Host "[OK] Connessione di test ATTIVA" -ForegroundColor Green
+        Write-Host "     PID       : $($proc.Id)" -ForegroundColor Green
+        Write-Host "     Remoto    : $($connessione.RemoteAddress):$($connessione.RemotePort)" -ForegroundColor Green
+        Write-Host "     Programma : $exePath" -ForegroundColor Green
         Write-Host "============================================================" -ForegroundColor Green
         Write-Host ""
-        Write-Host "NOW run run.bat (as administrator) in another window and" -ForegroundColor Cyan
-        Write-Host "look for the 'falso_positivo_test' row:" -ForegroundColor Cyan
-        Write-Host "the expected outcome is SUSPICIOUS (path/signature)." -ForegroundColor Cyan
+        Write-Host "ORA lancia run.bat (meglio come amministratore) in un'altra" -ForegroundColor Cyan
+        Write-Host "finestra e cerca la riga 'falso_positivo_test':" -ForegroundColor Cyan
+        Write-Host "l'esito atteso e' SOSPETTO (percorso/firma)." -ForegroundColor Cyan
     }
     else {
 
-        Write-Host "[WARNING] I do not see an established connection." -ForegroundColor Red
-        Write-Host "Possible causes: no internet connection, DNS not resolving" -ForegroundColor Red
-        Write-Host "$TestHost, or a firewall/antivirus blocking the test" -ForegroundColor Red
-        Write-Host "program." -ForegroundColor Red
+        Write-Host "[ATTENZIONE] Non vedo una connessione stabilita." -ForegroundColor Red
+        Write-Host "Possibili cause: nessuna connessione internet, DNS che non" -ForegroundColor Red
+        Write-Host "risolve $HostTest, firewall o antivirus che bloccano il" -ForegroundColor Red
+        Write-Host "programma di test." -ForegroundColor Red
 
         if ($proc.HasExited) {
-            Write-Host "(the test program has already ended)" -ForegroundColor Red
+            Write-Host "(il programma di test e' gia' terminato)" -ForegroundColor Red
         }
 
         return
     }
 
     # --------------------------------------------------------
-    # Wait: ENTER to finish, or until the time expires
+    # Attende: INVIO per terminare, oppure scade il tempo
     # --------------------------------------------------------
 
     Write-Host ""
-    Write-Host "Press ENTER to end the test and clean everything up." -ForegroundColor Yellow
-    Write-Host "(It stops by itself anyway after $MaxDurationSeconds seconds.)" -ForegroundColor Yellow
+    Write-Host "Premi INVIO per terminare il test e ripulire tutto." -ForegroundColor Yellow
+    Write-Host "(Si ferma comunque da solo dopo $DurataMaxSecondi secondi.)" -ForegroundColor Yellow
 
-    $stoppedWithEnter = $false
+    $fermatoConInvio = $false
 
     while (-not $proc.HasExited) {
 
         if ([Console]::KeyAvailable) {
 
-            $key = [Console]::ReadKey($true)
+            $tasto = [Console]::ReadKey($true)
 
-            if ($key.Key -eq [ConsoleKey]::Enter) {
-                $stoppedWithEnter = $true
+            if ($tasto.Key -eq [ConsoleKey]::Enter) {
+                $fermatoConInvio = $true
                 break
             }
         }
@@ -308,17 +307,17 @@ try {
         Start-Sleep -Milliseconds 300
     }
 
-    # The test program stopped by itself (time expired) or was
-    # terminated by controllo-connessioni. Do NOT clean up right away:
-    # you may still need to complete the quarantine or the whitelist,
-    # which need the file. Wait for your ENTER.
-    if (-not $stoppedWithEnter) {
+    # Il programma di test si e' fermato da solo (tempo scaduto) oppure
+    # e' stato terminato da controllo-connessioni. NON ripulisco subito:
+    # potresti dover ancora completare la quarantena o la whitelist, che
+    # hanno bisogno del file. Aspetto il tuo INVIO.
+    if (-not $fermatoConInvio) {
 
         Write-Host ""
-        Write-Host "The test program has stopped (terminated by" -ForegroundColor Yellow
-        Write-Host "controllo-connessioni or time expired)." -ForegroundColor Yellow
-        Write-Host "Finish the quarantine/whitelist in the other window." -ForegroundColor Yellow
-        Write-Host "Then press ENTER here to clean up the test files." -ForegroundColor Yellow
+        Write-Host "Il programma di test si e' fermato (terminato da" -ForegroundColor Yellow
+        Write-Host "controllo-connessioni oppure tempo scaduto)." -ForegroundColor Yellow
+        Write-Host "Completa pure quarantena/whitelist nell'altra finestra." -ForegroundColor Yellow
+        Write-Host "Poi premi INVIO qui per ripulire i file di test." -ForegroundColor Yellow
 
         [void](Read-Host)
     }
@@ -326,11 +325,11 @@ try {
 finally {
 
     # --------------------------------------------------------
-    # CLEANUP (always executed, even with CTRL+C)
+    # PULIZIA (eseguita sempre, anche con CTRL+C)
     # --------------------------------------------------------
 
     Write-Host ""
-    Write-Host "Cleaning up..." -ForegroundColor Yellow
+    Write-Host "Pulizia in corso..." -ForegroundColor Yellow
 
     if ($proc -and -not $proc.HasExited) {
 
@@ -342,8 +341,8 @@ finally {
         Start-Sleep -Milliseconds 500
     }
 
-    # The file may stay locked for a moment after the process
-    # closes: retry a few times.
+    # Il file puo' restare bloccato un istante dopo la chiusura
+    # del processo: riprovo alcune volte.
     for ($t = 0; $t -lt 10; $t++) {
 
         if (-not (Test-Path -LiteralPath $exePath)) {
@@ -361,30 +360,30 @@ finally {
     }
 
     if (Test-Path -LiteralPath $exePath) {
-        Write-Host "[WARNING] I could not delete:" -ForegroundColor Red
-        Write-Host "          $exePath" -ForegroundColor Red
-        Write-Host "          Delete it by hand." -ForegroundColor Red
+        Write-Host "[ATTENZIONE] Non sono riuscito a cancellare:" -ForegroundColor Red
+        Write-Host "             $exePath" -ForegroundColor Red
+        Write-Host "             Cancellalo a mano." -ForegroundColor Red
     }
     else {
-        Write-Host "[OK] Test program stopped and file deleted." -ForegroundColor Green
+        Write-Host "[OK] Programma di test fermato e file cancellato." -ForegroundColor Green
     }
 
-    # Remove the test folders, but ONLY if they are empty
-    # (first "temp", then "fake_process")
-    foreach ($folder in @($testFolder, $fakeFolder)) {
+    # Rimuove le cartelle di test, ma SOLO se sono vuote
+    # (prima "temp", poi "fake_process")
+    foreach ($cartella in @($cartellaTest, $cartellaFake)) {
 
-        if (Test-Path -LiteralPath $folder) {
+        if (Test-Path -LiteralPath $cartella) {
 
-            $contents = @(
+            $contenuto = @(
                 Get-ChildItem `
-                    -LiteralPath $folder `
+                    -LiteralPath $cartella `
                     -Force `
                     -ErrorAction SilentlyContinue
             )
 
-            if ($contents.Count -eq 0) {
+            if ($contenuto.Count -eq 0) {
                 Remove-Item `
-                    -LiteralPath $folder `
+                    -LiteralPath $cartella `
                     -Force `
                     -ErrorAction SilentlyContinue
             }
@@ -392,5 +391,5 @@ finally {
     }
 
     Write-Host ""
-    Write-Host "Test finished." -ForegroundColor Green
+    Write-Host "Test concluso." -ForegroundColor Green
 }

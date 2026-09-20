@@ -23,6 +23,7 @@ It ships with a small **harmless test tool** that creates a fake suspicious conn
 - [Interactive actions](#interactive-actions)
 - [Whitelist](#whitelist)
 - [Quarantine](#quarantine)
+- [Report viewer (index.html)](#report-viewer-indexhtml)
 - [Testing the detection (false positive tool)](#testing-the-detection-false-positive-tool)
 - [Configuration](#configuration)
 - [Limitations and security notes](#limitations-and-security-notes)
@@ -40,6 +41,7 @@ It ships with a small **harmless test tool** that creates a fake suspicious conn
 - **Terminates all suspicious processes** in one step (after your confirmation), with several safeguards against killing the wrong thing.
 - Optional **quarantine**: moves the executables of terminated processes to a `Quarantine` folder, renamed so they cannot be executed. Nothing is deleted.
 - **Whitelist by path + SHA256 hash**, not by name: if an approved file is replaced or modified, it is flagged again.
+- Saves a **JSON report** that a single-file web page (`index.html`) can browse, filter and export, entirely in your browser.
 - Requires administrator rights via the launcher, so process paths can be read reliably.
 - Pure PowerShell 5.1 + built-in Windows cmdlets. No downloads, no modules, no network calls made by the checker itself.
 - All source files are plain ASCII (safe with Windows PowerShell 5.1 and BOM-less files).
@@ -87,6 +89,7 @@ It ships with a small **harmless test tool** that creates a fake suspicious conn
 | `controllo-connessioni.ps1` | The connection checker (*"controllo connessioni"* is Italian for *"connection check"*). |
 | `falso_positivo.bat` | Launcher for the test tool. Same administrator check. |
 | `falso_positivo.ps1` | The harmless test tool (*"falso positivo"* is Italian for *"false positive"*). |
+| `index.html` | Static report viewer. Loads the JSON report; needs no server and no internet. |
 
 Files created at runtime, next to the scripts:
 
@@ -95,6 +98,7 @@ Files created at runtime, next to the scripts:
 | `whitelist.txt` | checker | Approved processes (path + hash). |
 | `Quarantine\` | checker | Quarantined files and `quarantine.txt` index. |
 | `fake_process\temp\` | test tool | Temporary test executable (removed automatically). |
+| `outbound-connection-report.json` | checker | JSON report for the viewer. |
 
 > These runtime files contain machine-specific paths and hashes. The provided `.gitignore` keeps them out of the repository.
 
@@ -227,6 +231,83 @@ The `.quarantine` extension prevents accidental execution. `Quarantine\quarantin
 
 Quarantine is offered as a separate step because a terminated program may start again (autostart entries, scheduled tasks). Note that quarantining does not remove persistence mechanisms: if a program keeps coming back, inspect your startup entries and scheduled tasks (for example with Sysinternals Autoruns).
 
+## Report viewer (index.html)
+
+`index.html` is one self-contained page that turns the checker's JSON report into something easier to browse. It is static: double-click it to open it locally, or publish it with GitHub Pages.
+
+### Using it
+
+1. Run `run.bat` as administrator. The checker saves `outbound-connection-report.json` next to the script (like `whitelist.txt`) and prints the path. The file is written right after the analysis, **before** you answer any prompt, so it always describes what was found, not what you did afterwards. Each scan overwrites the previous report.
+2. Open `index.html` in a browser.
+3. Drop the JSON file on the page or choose it. In Chrome and Edge the file picker reopens in the folder you used last time. You can also paste the JSON text. **Try demo data** loads a made-up report so you can explore the page first.
+4. After the next scan, click **Refresh report**: the page reads the same file again and keeps your filter, search, view and sort. See [Refreshing the report](#refreshing-the-report).
+
+### What it offers
+
+- A one-sentence **verdict** and a **status bar** showing how the processes split across Suspicious, To check, Unverifiable, Whitelist and Normal. Click a segment or a legend entry to filter.
+- Search across process, address, path, publisher and hash.
+- **Connections** view (one row per connection) and **Processes** view (one row per process), with sortable columns.
+- Expandable details: path, SHA256, signature, publisher, company, version, note and every connection of the process.
+- **Refresh report** to reload the same file after a new scan, keeping your filters.
+- **Copy path**, **Copy SHA256** and an optional **Look up on VirusTotal** link.
+- **Build whitelist lines**: tick the processes you have verified and get lines in the `whitelist.txt` format, ready to paste.
+- **Export CSV** of the connections currently shown (cells that could be read as spreadsheet formulas are neutralized).
+- Light, dark or automatic theme, keyboard navigation and reduced-motion support.
+
+### Refreshing the report
+
+A page opened from disk is not allowed to go looking for files next to it: browsers block that on purpose, otherwise any downloaded HTML file could read your files. The viewer therefore works in one of two ways:
+
+- **Chrome or Edge (recommended).** When you choose or drop the report file, the browser gives the page a handle to that one file. **Refresh report** re-reads it without opening a dialog, so the workflow is: run `run.bat`, switch to the viewer tab, click **Refresh report**. If the file has not changed, it tells you so.
+- **From `localhost`.** If you serve the folder with any small local web server (for example `python -m http.server` in the repository folder, then open `http://localhost:8000/`), the page finds `outbound-connection-report.json` next to `index.html` by itself when it opens, and **Refresh report** fetches it again. This works in every browser. It is only attempted on `localhost`, never on a public site such as GitHub Pages.
+
+In other browsers opened from disk (Firefox, Safari) the page cannot re-read the file; load it again after each scan. The page says so on its start screen.
+
+### Read-only by design
+
+A web page cannot terminate processes, move files or edit files next to it, and you would not want one that could. The viewer only **shows** and **prepares**; terminating, quarantining and whitelisting stay in the PowerShell script.
+
+### Privacy
+
+- The report contains process names, file paths, hashes and remote addresses of your machine. The page **never uploads it**: its Content-Security-Policy only allows requests to the address the page was loaded from (used solely on `localhost`, see below), and it stores nothing except your theme choice.
+- Report data is inserted as plain text, never as HTML, so a process with a hostile name cannot inject markup into the page.
+- The only outgoing link is the optional VirusTotal lookup, which opens in a new tab when you click it and contains only the file hash.
+- Hosting the page on GitHub Pages serves the page itself; your report is opened locally in your browser. **Do not commit real reports** to a public repository.
+
+### Publishing it with GitHub Pages
+
+In the repository, go to **Settings > Pages**, choose **Deploy from a branch**, select your main branch and the `/ (root)` folder. The viewer is then available at `https://cruelben.github.io/outbound-connection-auditor/`.
+
+### Report format
+
+```json
+{
+  "schema": "outbound-connection-auditor/1",
+  "generated": "2026-01-01T12:00:00+01:00",
+  "isAdmin": true,
+  "totalConnections": 17,
+  "connections": [
+    {
+      "PID": 9284,
+      "Process": "falso_positivo_test",
+      "Remote_IP": "198.51.100.7",
+      "Remote_Port": 80,
+      "Local_Port": 1984,
+      "Status": "SUSPICIOUS (path/signature)",
+      "Signature": "Unsigned",
+      "Publisher": "N/A",
+      "Company": "N/A",
+      "Version": "0.0.0.0",
+      "Hash": "SHA256 of the file, or N/A",
+      "Note": "",
+      "Path": "D:\\tools\\fake_process\\temp\\falso_positivo_test.exe"
+    }
+  ]
+}
+```
+
+`connections` holds the same rows as the table printed by the checker. The viewer also accepts a plain JSON array of such rows.
+
 ## Testing the detection (false positive tool)
 
 To confirm the checker works on your machine, use the harmless test tool.
@@ -261,6 +342,8 @@ Edit the variables at the top of `controllo-connessioni.ps1`:
 | `$trustedPublishers` | Publishers trusted for programs under `\AppData\`. A valid signature from one of these makes the program `Normal` (avoids false positives for Discord, Spotify, Chrome, ...). The exact name to use appears in the `Publisher` field of the detail block. |
 | `$knownProtectedProcesses` | Protected system processes whose path cannot be read even as administrator (default: `MpDefenderCoreService`). Treated as `Normal` only when running as administrator. |
 | `$criticalProcesses` | Processes that are never terminated when located in `System32`. |
+| `$exportReport` | `$true` (default) saves the JSON report for the viewer; set it to `$false` to disable it. |
+| `$reportFile` | Where the JSON report is saved (default: `outbound-connection-report.json` next to the script). |
 
 In `falso_positivo.ps1`:
 
@@ -278,6 +361,7 @@ In `falso_positivo.ps1`:
 - **Terminating processes can disrupt work.** Data in a terminated application may be lost. Read the list before answering `Y`.
 - **Quarantine is manual to reverse** (see [Quarantine](#quarantine)).
 - The whitelist protects against file replacement thanks to the hash, but anyone who can edit `whitelist.txt` can approve anything: keep the folder writable only by trusted users.
+- The JSON report contains machine-specific paths, hashes and IP addresses. Treat it like any other log: do not publish it, and delete it when you no longer need it.
 - Use it on machines you own or administer.
 
 For deeper investigation, combine it with tools such as Sysinternals TCPView, Process Explorer (with VirusTotal checks) and Autoruns, plus your antivirus/EDR.
@@ -293,6 +377,10 @@ For deeper investigation, combine it with tools such as Sysinternals TCPView, Pr
 | Test tool: "Compilation failed" | It must run under Windows PowerShell 5.1 (use `falso_positivo.bat`). |
 | Test tool: "I do not see an established connection" | No internet, DNS failure for the test host, or a firewall/antivirus blocking the test program. |
 | Test tool could not delete its executable | Close the `falso_positivo_test` process and delete the file by hand. |
+| The viewer says the file is not a report | Load `outbound-connection-report.json` (not `whitelist.txt`). If it is empty or damaged, run the checker again. |
+| I cannot find the JSON report in the file dialog | It is next to `controllo-connessioni.ps1`; the checker prints the full path when it saves the report. |
+| There is no **Refresh report** button | It only appears for a report loaded in Chrome or Edge, or when the page is served from `localhost`. Not for demo data, pasted JSON or files loaded in other browsers. |
+| **Refresh report** says the latest report is already shown | The file has not changed since it was loaded: run the checker again first. |
 | Accented characters look wrong | All scripts are ASCII on purpose; if you edit them, avoid non-ASCII characters or save with a UTF-8 BOM. |
 
 ## Contributing

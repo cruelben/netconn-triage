@@ -2,17 +2,17 @@
 cd /d "%~dp0"
 
 rem ------------------------------------------------------------
-rem Check for administrator privileges
-rem (fltmc only works from an elevated prompt)
+rem Verifica privilegi di amministratore
+rem (fltmc funziona solo da prompt con privilegi elevati)
 rem ------------------------------------------------------------
 fltmc >nul 2>&1
 if errorlevel 1 (
     echo.
     echo ============================================================
-    echo   WARNING: this script was NOT started as administrator.
+    echo   ATTENZIONE: script NON avviato come amministratore.
     echo.
-    echo   Please run it again as administrator:
-    echo   right-click this file, then "Run as administrator".
+    echo   Avviare nuovamente come amministratore:
+    echo   tasto destro su questo file, poi "Esegui come amministratore".
     echo ============================================================
     echo.
     pause

@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<!-- The page may only contact the address it was loaded from (used on localhost to find the report next to it). Everything else is blocked. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<title>Outbound Connection Auditor - report viewer</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b5c78'/%3E%3Cpath d='M8 21a11 11 0 0 1 16 0M11.5 17.5a6 6 0 0 1 9 0' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='23' r='2' fill='white'/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #eef1f4;
+  --surface: #ffffff;
+  --surface-2: #f5f7f9;
+  --ink: #14202b;
+  --muted: #566573;
+  --rule: #d2d9e0;
+  --brand: #0b5c78;
+  --on-brand: #ffffff;
+  --suspicious: #b3261e;
+  --check: #9a5b00;
+  --unverifiable: #6250a0;
+  --whitelist: #0b7266;
+  --normal: #38764a;
+  --suspicious-bg: #fbe7e4;
+  --check-bg: #fbefd6;
+  --unverifiable-bg: #ece8f7;
+  --whitelist-bg: #dbf1ee;
+  --normal-bg: #e2f1e6;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1319;
+    --surface: #131b23;
+    --surface-2: #18222c;
+    --ink: #e5ebf0;
+    --muted: #95a3b0;
+    --rule: #28343f;
+    --brand: #62c3e4;
+    --on-brand: #06202b;
+    --suspicious: #ff8078;
+    --check: #e9b949;
+    --unverifiable: #bba9f7;
+    --whitelist: #4fd3c1;
+    --normal: #73cf8c;
+    --suspicious-bg: #3b1a19;
+    --check-bg: #382b10;
+    --unverifiable-bg: #28223f;
+    --whitelist-bg: #0f3130;
+    --normal-bg: #172d1f;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1319;
+  --surface: #131b23;
+  --surface-2: #18222c;
+  --ink: #e5ebf0;
+  --muted: #95a3b0;
+  --rule: #28343f;
+  --brand: #62c3e4;
+  --on-brand: #06202b;
+  --suspicious: #ff8078;
+  --check: #e9b949;
+  --unverifiable: #bba9f7;
+  --whitelist: #4fd3c1;
+  --normal: #73cf8c;
+  --suspicious-bg: #3b1a19;
+  --check-bg: #382b10;
+  --unverifiable-bg: #28223f;
+  --whitelist-bg: #0f3130;
+  --normal-bg: #172d1f;
+  color-scheme: dark;
+}
+:root[data-theme="light"] { color-scheme: light; }
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+}
+.mono, code, kbd {
+  font-family: "Cascadia Mono", "Cascadia Code", Consolas, "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: .92em;
+}
+code {
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: .05em .35em;
+}
+button, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+.skip {
+  position: absolute; left: -999px; top: 0;
+  background: var(--brand); color: var(--on-brand);
+  padding: .5rem .9rem; z-index: 10; border-radius: 0 0 4px 0;
+}
+.skip:focus { left: 0; }
+
+/* ---------- header ---------- */
+.top {
+  max-width: 1200px; margin: 0 auto;
+  padding: 1.1rem 1.5rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+}
+.brand { display: flex; align-items: center; gap: .75rem; }
+.brand svg { flex: none; }
+.brand-name { margin: 0; font-weight: 650; letter-spacing: -.01em; line-height: 1.2; }
+.brand-sub { margin: 0; color: var(--muted); font-size: .85rem; line-height: 1.2; }
+.top-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+.btn {
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  border-radius: 4px;
+  padding: .38rem .8rem;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex; align-items: center; gap: .4rem;
+  line-height: 1.3;
+  font-size: .9rem;
+}
+.btn:hover:not(:disabled) { border-color: var(--muted); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: var(--brand); color: var(--on-brand); border-color: var(--brand); font-weight: 600; }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.08); border-color: var(--brand); }
+
+main { max-width: 1200px; margin: 0 auto; padding: 1rem 1.5rem 3rem; }
+
+/* ---------- landing ---------- */
+.landing-title {
+  font-size: clamp(1.9rem, 4.2vw, 3rem);
+  line-height: 1.1; letter-spacing: -.025em; font-weight: 650;
+  margin: 1.5rem 0 .75rem; max-width: 20ch;
+}
+.lead { max-width: 62ch; color: var(--muted); margin: 0 0 1.75rem; font-size: 1.05rem; }
+.dropzone {
+  display: block; width: 100%;
+  border: 2px dashed var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 2.4rem 1.5rem;
+  text-align: left;
+  cursor: pointer;
+}
+.dropzone:hover, .dropzone.over { border-color: var(--brand); background: var(--surface-2); }
+.dropzone strong { display: block; font-size: 1.25rem; font-weight: 600; margin-bottom: .2rem; }
+.dropzone span { color: var(--muted); }
+.landing-actions { display: flex; gap: .6rem; flex-wrap: wrap; margin: 1rem 0; }
+details.paste { margin: .25rem 0 1rem; }
+details.paste summary { cursor: pointer; color: var(--brand); font-weight: 600; width: max-content; }
+details.paste textarea {
+  display: block; width: 100%; min-height: 9rem; margin: .6rem 0;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: .6rem;
+  resize: vertical;
+}
+.hint { color: var(--muted); font-size: .9rem; margin: 0 0 1rem; max-width: 70ch; }
+.error {
+  border-left: 5px solid var(--suspicious);
+  background: var(--suspicious-bg);
+  padding: .7rem 1rem; margin: 1rem 0; border-radius: 0 4px 4px 0;
+}
+.steps { margin: 2rem 0 1rem; padding-left: 1.3rem; max-width: 70ch; }
+.steps li { margin: .35rem 0; padding-left: .3rem; }
+.privacy {
+  max-width: 70ch; color: var(--muted);
+  border-top: 1px solid var(--rule); padding-top: 1rem; margin-top: 1.5rem;
+}
+
+/* ---------- report header ---------- */
+.verdict {
+  margin: 1rem 0 .6rem;
+  padding-left: 1rem;
+  border-left: 6px solid var(--verdict, var(--rule));
+  font-size: clamp(1.7rem, 3.6vw, 2.6rem);
+  line-height: 1.12; letter-spacing: -.02em; font-weight: 650;
+  max-width: 24ch;
+}
+.verdict:focus { outline: none; }
+.meta { margin: 0 0 1rem; color: var(--muted); display: flex; flex-wrap: wrap; row-gap: .2rem; }
+.meta span { padding-right: 1rem; margin-right: 1rem; border-right: 1px solid var(--rule); }
+.meta span:last-child { border-right: 0; margin-right: 0; padding-right: 0; }
+.notice {
+  border-left: 5px solid var(--check);
+  background: var(--check-bg);
+  padding: .6rem 1rem; margin: 0 0 1rem; border-radius: 0 4px 4px 0; max-width: 80ch;
+}
+
+/* ---------- status spectrum ---------- */
+.spectrum { display: flex; gap: 3px; height: 30px; margin: 1.1rem 0 .7rem; }
+.seg {
+  flex: var(--n) 1 0%; min-width: 12px;
+  border: 0; border-radius: 3px; padding: 0; cursor: pointer;
+  background: var(--c);
+  transition: opacity .15s;
+}
+.seg.dim { opacity: .25; }
+.seg-empty { flex: 1; border-radius: 3px; background: var(--rule); }
+.spectrum.enter .seg { animation: grow .75s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i) * 80ms); transform-origin: left center; }
+@keyframes grow { from { transform: scaleX(0); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .spectrum.enter .seg { animation: none; } }
+
+.legend { display: flex; flex-wrap: wrap; gap: .4rem .5rem; margin: 0 0 1.6rem; }
+.legend-item {
+  display: inline-flex; align-items: center; gap: .5rem;
+  background: transparent; border: 1px solid var(--rule); border-radius: 999px;
+  padding: .22rem .8rem .22rem .6rem; cursor: pointer; font-size: .9rem;
+}
+.legend-item:hover { border-color: var(--muted); }
+.legend-item[aria-pressed="true"] { background: var(--surface); border-color: var(--ink); font-weight: 600; }
+.legend-item .sw { width: .7rem; height: .7rem; border-radius: 2px; background: var(--c, var(--muted)); }
+.legend-item .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ---------- toolbar ---------- */
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-bottom: .8rem; }
+.search {
+  flex: 1 1 16rem; max-width: 26rem;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+  padding: .4rem .7rem;
+}
+.seg-control { display: inline-flex; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; background: var(--surface); }
+.seg-control button { border: 0; background: transparent; padding: .38rem .85rem; cursor: pointer; font-size: .9rem; }
+.seg-control button + button { border-left: 1px solid var(--rule); }
+.seg-control button[aria-pressed="true"] { background: var(--ink); color: var(--bg); font-weight: 600; }
+.spacer { flex: 1; }
+.count { color: var(--muted); font-size: .88rem; margin: 0 0 .5rem; }
+
+/* ---------- table ---------- */
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-weight: 600; font-size: .85rem; color: var(--muted); white-space: nowrap; border-bottom: 1px solid var(--rule); padding: 0; }
+th button {
+  all: unset; box-sizing: border-box; cursor: pointer; width: 100%;
+  padding: .55rem .75rem; display: flex; align-items: center; gap: .35rem;
+}
+th button:hover { color: var(--ink); }
+th button:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+th[aria-sort="ascending"] button::after { content: "\25B2"; font-size: .6rem; }
+th[aria-sort="descending"] button::after { content: "\25BC"; font-size: .6rem; }
+th[aria-sort] { color: var(--ink); }
+th.num button { justify-content: flex-end; }
+td { padding: .5rem .75rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.row { cursor: pointer; }
+tr.row:hover td { background: var(--surface-2); }
+tr.row td:first-child { box-shadow: inset 4px 0 0 var(--cat, transparent); }
+tr.row.open td { background: var(--surface-2); }
+td.proc { font-weight: 600; word-break: break-word; }
+td.chevcell { width: 2.4rem; padding: .3rem .4rem; text-align: right; }
+.chev {
+  all: unset; box-sizing: border-box; cursor: pointer; width: 1.8rem; height: 1.8rem;
+  display: inline-grid; place-items: center; border-radius: 4px; color: var(--muted);
+}
+.chev:hover { background: var(--rule); color: var(--ink); }
+.chev:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.chev::before { content: "\25B8"; font-size: .85rem; transition: transform .12s; }
+.chev[aria-expanded="true"]::before { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .chev::before { transition: none; } }
+
+.cat-suspicious { --cat: var(--suspicious); --cat-bg: var(--suspicious-bg); }
+.cat-check { --cat: var(--check); --cat-bg: var(--check-bg); }
+.cat-unverifiable { --cat: var(--unverifiable); --cat-bg: var(--unverifiable-bg); }
+.cat-whitelist { --cat: var(--whitelist); --cat-bg: var(--whitelist-bg); }
+.cat-normal { --cat: var(--normal); --cat-bg: var(--normal-bg); }
+
+.badge {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .1rem .6rem; border-radius: 999px; white-space: nowrap;
+  background: var(--cat-bg); color: var(--cat);
+  font-size: .82rem; font-weight: 650;
+}
+.badge::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; }
+.reason { display: block; color: var(--muted); font-size: .8rem; margin-top: .15rem; }
+
+.detail td { background: var(--surface-2); padding: 1rem 1rem 1.25rem 1.5rem; }
+.fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .35rem 1.4rem; margin: 0 0 1rem; }
+.fields dt { color: var(--muted); }
+.fields dd { margin: 0; overflow-wrap: anywhere; }
+.fields dd.note { color: var(--check); font-weight: 600; }
+.connlist { margin: 0 0 1rem; padding: 0; list-style: none; }
+.connlist li { padding: .1rem 0; }
+.detail-title { margin: 0 0 .35rem; font-size: .85rem; font-weight: 600; color: var(--muted); }
+.actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+.empty { padding: 2rem 1.25rem; }
+.empty p { margin: 0 0 .75rem; }
+
+/* ---------- dialog ---------- */
+dialog {
+  width: min(46rem, calc(100vw - 2rem));
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--rule); border-radius: 6px; padding: 1.4rem;
+}
+dialog::backdrop { background: rgba(8, 12, 16, .55); }
+dialog h2 { margin: 0 0 .4rem; font-size: 1.3rem; letter-spacing: -.01em; }
+dialog p { margin: 0 0 .8rem; color: var(--muted); }
+.wl-list { max-height: 15rem; overflow: auto; border: 1px solid var(--rule); border-radius: 4px; margin: 0 0 .9rem; }
+.wl-list label { display: flex; gap: .6rem; align-items: flex-start; padding: .5rem .7rem; border-bottom: 1px solid var(--rule); cursor: pointer; }
+.wl-list label:last-child { border-bottom: 0; }
+.wl-list input { margin-top: .3rem; flex: none; }
+.wl-list .path { color: var(--muted); display: block; overflow-wrap: anywhere; font-size: .85rem; }
+dialog textarea {
+  display: block; width: 100%; min-height: 7rem; resize: vertical;
+  background: var(--surface-2); border: 1px solid var(--rule); border-radius: 4px; padding: .6rem;
+  margin-bottom: .9rem; font-size: .82rem;
+}
+.dialog-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+/* ---------- footer, toast ---------- */
+footer { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem 2.5rem; color: var(--muted); font-size: .85rem; }
+.toast {
+  position: fixed; left: 50%; bottom: 1.5rem; transform: translate(-50%, 1rem);
+  background: var(--ink); color: var(--bg);
+  padding: .5rem 1rem; border-radius: 4px; opacity: 0; pointer-events: none;
+  transition: opacity .15s, transform .15s; z-index: 20;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+@media (max-width: 640px) {
+  .top, main, footer { padding-left: 1rem; padding-right: 1rem; }
+  .fields { grid-template-columns: 1fr; gap: 0; }
+  .fields dt { margin-top: .5rem; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="brand">
+    <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="7" fill="var(--brand)"/>
+      <path d="M8 21a11 11 0 0 1 16 0M11.5 17.5a6 6 0 0 1 9 0" fill="none" stroke="var(--on-brand)" stroke-width="2.4" stroke-linecap="round"/>
+      <circle cx="16" cy="23" r="2" fill="var(--on-brand)"/>
+    </svg>
+    <div>
+      <p class="brand-name">Outbound Connection Auditor</p>
+      <p class="brand-sub">Report viewer</p>
+    </div>
+  </div>
+  <div class="top-actions">
+    <button class="btn" id="btn-refresh" type="button" hidden title="Read the same report file again">Refresh report</button>
+    <button class="btn" id="btn-new" type="button" hidden>Load another report</button>
+    <button class="btn" id="btn-theme" type="button">Theme: auto</button>
+  </div>
+</header>
+
+<main id="main">
+  <noscript><p class="error">This viewer needs JavaScript to read the report. Nothing is sent anywhere.</p></noscript>
+
+  <!-- ===== Landing ===== -->
+  <section id="landing" aria-labelledby="landing-title">
+    <h1 class="landing-title" id="landing-title">Which programs is your PC talking to?</h1>
+    <p class="lead">Load the report created by the checker script. This page sorts the connections by risk, shows the file behind each one and prepares whitelist entries.</p>
+
+    <div id="error" class="error" role="alert" hidden></div>
+
+    <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-describedby="dz-hint">
+      <strong>Drop outbound-connection-report.json here</strong>
+      <span id="dz-hint">or press Enter to choose the file</span>
+    </div>
+    <input type="file" id="file-input" accept=".json,application/json" hidden>
+
+    <div class="landing-actions">
+      <button class="btn primary" id="btn-choose" type="button">Choose file</button>
+      <button class="btn" id="btn-demo" type="button">Try demo data</button>
+    </div>
+
+    <p class="hint" id="browser-hint" hidden></p>
+
+    <details class="paste">
+      <summary>Paste the JSON instead</summary>
+      <textarea id="paste-text" class="mono" spellcheck="false" aria-label="Report JSON" placeholder='{ "schema": "outbound-connection-auditor/1", "connections": [ ... ] }'></textarea>
+      <button class="btn" id="btn-load-paste" type="button">Load pasted JSON</button>
+    </details>
+
+    <ol class="steps">
+      <li>Run <code>run.bat</code> as administrator.</li>
+      <li>The checker saves <code>outbound-connection-report.json</code> next to the script.</li>
+      <li>Drop that file here, or choose it. After the next scan, <strong>Refresh report</strong> reads the same file again without asking.</li>
+    </ol>
+
+    <p class="privacy">The report contains process names, file paths, hashes and remote addresses from your PC. It stays in this browser tab: the page can only contact the address it was loaded from, never sends the report anywhere, and stores nothing except your theme choice. The only outgoing link is the optional VirusTotal lookup, which opens in a new tab when you click it.</p>
+  </section>
+
+  <!-- ===== Report ===== -->
+  <section id="report" hidden>
+    <h1 class="verdict" id="verdict" tabindex="-1"></h1>
+    <p class="meta" id="meta"></p>
+    <p class="notice" id="notice" hidden></p>
+
+    <div class="spectrum" id="spectrum" role="group" aria-label="Share of processes by status"></div>
+    <div class="legend" id="legend" role="group" aria-label="Filter by status"></div>
+
+    <div class="toolbar">
+      <input class="search" id="search" type="search" placeholder="Search process, address, path, publisher" aria-label="Search the report" autocomplete="off">
+      <div class="seg-control" role="group" aria-label="Table view">
+        <button type="button" id="view-connections" aria-pressed="true">Connections</button>
+        <button type="button" id="view-processes" aria-pressed="false">Processes</button>
+      </div>
+      <span class="spacer"></span>
+      <button class="btn primary" id="btn-whitelist" type="button">Build whitelist lines</button>
+      <button class="btn" id="btn-csv" type="button">Export CSV</button>
+    </div>
+    <p class="count" id="count" aria-live="polite"></p>
+    <div class="tablewrap" id="tablewrap"></div>
+  </section>
+</main>
+
+<footer>
+  <p>This is a snapshot of established TCP connections. UDP traffic and very short connections are not included, and a Normal status does not guarantee that a program is safe.</p>
+</footer>
+
+<dialog id="wl" aria-labelledby="wl-title">
+  <h2 id="wl-title">Build whitelist lines</h2>
+  <p>Pick only programs you have verified. Paste the lines into <code>whitelist.txt</code>, next to <code>controllo-connessioni.ps1</code>. Each line trusts one exact file: the path and the SHA256 must both match.</p>
+  <div class="wl-list" id="wl-list"></div>
+  <textarea id="wl-out" class="mono" readonly spellcheck="false" aria-label="Generated whitelist lines"></textarea>
+  <div class="dialog-actions">
+    <button class="btn primary" id="wl-copy" type="button" disabled>Copy lines</button>
+    <button class="btn" id="wl-dl" type="button" disabled>Download lines</button>
+    <button class="btn" id="wl-close" type="button">Close</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+
+const $ = (sel, root = document) => root.querySelector(sel);
+
+/* Build DOM nodes without innerHTML: report data comes from the machine
+   being audited and must never be interpreted as markup. */
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  if (props) {
+    for (const [k, v] of Object.entries(props)) {
+      if (v === false || v === null || v === undefined) continue;
+      if (k === 'class') el.className = v;
+      else if (k === 'text') el.textContent = v;
+      else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v === true ? '' : String(v));
+    }
+  }
+  for (const kid of kids.flat()) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+
+/* ---------- status categories ---------- */
+const CATS = [
+  { id: 'suspicious', label: 'Suspicious', rank: 0 },
+  { id: 'check', label: 'To check', rank: 1 },
+  { id: 'unverifiable', label: 'Unverifiable', rank: 2 },
+  { id: 'whitelist', label: 'Whitelist', rank: 3 },
+  { id: 'normal', label: 'Normal', rank: 4 },
+];
+const CAT = Object.fromEntries(CATS.map(c => [c.id, c]));
+
+function categoryOf(status) {
+  const s = String(status).trim().toUpperCase();
+  if (s.startsWith('SUSPICIOUS')) return 'suspicious';
+  if (s.startsWith('TO CHECK')) return 'check';
+  if (s.startsWith('UNVERIFIABLE')) return 'unverifiable';
+  if (s === 'WHITELIST') return 'whitelist';
+  return 'normal';
+}
+function reasonOf(status) {
+  const m = /\(([^)]*)\)/.exec(status);
+  return m ? m[1] : '';
+}
+const isHex64 = s => /^[A-Fa-f0-9]{64}$/.test(s);
+
+/* ---------- state ---------- */
+const state = {
+  procs: [], conns: [], meta: {}, source: '', isDemo: false,
+  origin: 'demo',      // demo | paste | upload | handle | http
+  handle: null,        // file handle (Chrome/Edge) so the same file can be re-read
+  modified: 0,         // lastModified of that file
+
+  filter: 'all', query: '', view: 'connections',
+  sort: { key: 'severity', dir: 1 },
+  open: new Set(), animate: false,
+};
+
+/* ---------- report parsing ---------- */
+function normalize(raw) {
+  let rows;
+  let meta = {};
+  if (Array.isArray(raw)) rows = raw;
+  else if (raw && typeof raw === 'object' && Array.isArray(raw.connections)) { rows = raw.connections; meta = raw; }
+  else if (raw && typeof raw === 'object' && 'PID' in raw) rows = [raw];
+  else throw new Error('no "connections" list was found');
+
+  const conns = rows.map((r, i) => {
+    if (!r || typeof r !== 'object') throw new Error('row ' + (i + 1) + ' is not an object');
+    const s = k => (r[k] === null || r[k] === undefined) ? '' : String(r[k]);
+    return {
+      idx: i,
+      pid: Number(r.PID) || 0,
+      process: s('Process') || 'N/A',
+      remoteIp: s('Remote_IP'),
+      remotePort: Number(r.Remote_Port) || 0,
+      localPort: Number(r.Local_Port) || 0,
+      status: s('Status') || 'Normal',
+      signature: s('Signature') || 'N/A',
+      publisher: s('Publisher') || 'N/A',
+      company: s('Company') || 'N/A',
+      version: s('Version') || 'N/A',
+      hash: s('Hash') || 'N/A',
+      note: s('Note'),
+      path: s('Path') || 'N/A',
+    };
+  });
+
+  const byPid = new Map();
+  for (const c of conns) {
+    let p = byPid.get(c.pid);
+    if (!p) {
+      p = {
+        pid: c.pid, process: c.process, status: c.status, cat: CAT[categoryOf(c.status)],
+        signature: c.signature, publisher: c.publisher, company: c.company, version: c.version,
+        hash: c.hash, note: c.note, path: c.path, conns: [],
+      };
+      byPid.set(c.pid, p);
+    }
+    p.conns.push(c);
+    c.proc = p;
+  }
+  const procs = [...byPid.values()];
+  for (const p of procs) {
+    p.searchText = [p.process, p.pid, p.status, p.signature, p.publisher, p.company, p.path, p.hash,
+      ...p.conns.map(c => c.remoteIp + ':' + c.remotePort)].join(' ').toLowerCase();
+  }
+  for (const c of conns) {
+    c.searchText = [c.process, c.pid, c.remoteIp + ':' + c.remotePort, c.localPort, c.status, c.signature,
+      c.publisher, c.company, c.path, c.hash].join(' ').toLowerCase();
+  }
+  return { conns, procs, meta };
+}
+
+/* ---------- loading ---------- */
+function showError(msg) {
+  const box = $('#error');
+  box.textContent = msg;
+  box.hidden = false;
+}
+function clearError() { $('#error').hidden = true; }
+
+/* opts: { isDemo, origin, handle, modified, keepView }
+   keepView is used by "Refresh report": filters, search, view and sort stay as they are. */
+function loadText(text, source, opts = {}) {
+  let data;
+  try {
+    const raw = JSON.parse(String(text).replace(/^\uFEFF/, ''));
+    data = normalize(raw);
+  } catch (err) {
+    if (opts.keepView) {
+      toast('Refresh failed: the file is not a readable report yet. Try again in a moment.');
+    } else {
+      showError('This is not a report the viewer can read (' + err.message + '). Run the checker again and load outbound-connection-report.json.');
+    }
+    return false;
+  }
+  clearError();
+  state.conns = data.conns;
+  state.procs = data.procs;
+  state.meta = data.meta;
+  state.source = source;
+  state.isDemo = !!opts.isDemo;
+  state.origin = opts.origin || 'upload';
+  state.handle = opts.handle || null;
+  state.modified = opts.modified || 0;
+  state.open = new Set();
+
+  if (opts.keepView) {
+    if (state.filter !== 'all' && !state.procs.some(p => p.cat.id === state.filter)) state.filter = 'all';
+  } else {
+    state.filter = 'all';
+    state.query = '';
+    state.view = 'connections';
+    state.sort = { key: 'severity', dir: 1 };
+    $('#search').value = '';
+  }
+  state.animate = !opts.keepView;
+
+  $('#landing').hidden = true;
+  $('#report').hidden = false;
+  $('#btn-new').hidden = false;
+  renderReport();
+  state.animate = false;
+  updateRefreshButton();
+  if (!opts.keepView) {
+    $('#verdict').focus();
+    window.scrollTo(0, 0);
+  }
+  return true;
+}
+
+async function readFile(file) {
+  if (file.size > 25 * 1024 * 1024) {
+    showError('This file is larger than 25 MB, so it is probably not a report.');
+    return;
+  }
+  try {
+    loadText(await file.text(), file.name, { origin: 'upload' });
+  } catch (err) {
+    showError('The file could not be read: ' + err.message);
+  }
+}
+
+/* Chrome and Edge give the page a file handle: the same file can be read again later. */
+async function readHandle(handle, refresh) {
+  const file = await handle.getFile();
+  if (file.size > 25 * 1024 * 1024) {
+    showError('This file is larger than 25 MB, so it is probably not a report.');
+    return;
+  }
+  if (refresh && file.lastModified === state.modified) {
+    toast('Already showing the latest report');
+    return;
+  }
+  const ok = loadText(await file.text(), file.name, {
+    origin: 'handle', handle, modified: file.lastModified, keepView: !!refresh,
+  });
+  if (ok && refresh) toast('Report refreshed');
+}
+
+async function chooseFile() {
+  if (typeof window.showOpenFilePicker === 'function') {
+    try {
+      const [handle] = await window.showOpenFilePicker({
+        id: 'outbound-report',            // the browser reopens the folder you used last time
+        multiple: false,
+        types: [{ description: 'JSON report', accept: { 'application/json': ['.json'] } }],
+      });
+      await readHandle(handle, false);
+    } catch (err) {
+      if (err && err.name !== 'AbortError') showError('The file could not be opened: ' + err.message);
+    }
+    return;
+  }
+  $('#file-input').click();
+}
+
+/* When the page is served from localhost (for example with a small local web server started
+   in the report folder), the report is simply the file next to index.html. */
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
+const servedLocally = () => /^https?:$/.test(location.protocol) && LOCAL_HOSTS.includes(location.hostname);
+
+async function fetchNeighbour(refresh) {
+  const res = await fetch('./outbound-connection-report.json', { cache: 'no-store' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const ok = loadText(await res.text(), 'outbound-connection-report.json', { origin: 'http', keepView: !!refresh });
+  if (ok && refresh) toast('Report refreshed');
+}
+
+async function refreshReport() {
+  try {
+    if (state.origin === 'handle' && state.handle) {
+      await readHandle(state.handle, true);
+    } else if (state.origin === 'http') {
+      await fetchNeighbour(true);
+    }
+  } catch (err) {
+    toast('Refresh failed: the file could not be read again. It may have been moved or deleted.');
+  }
+}
+
+function updateRefreshButton() {
+  $('#btn-refresh').hidden = !(state.origin === 'handle' || state.origin === 'http') || state.isDemo;
+}
+
+function backToLanding() {
+  $('#report').hidden = true;
+  $('#landing').hidden = false;
+  $('#btn-new').hidden = true;
+  $('#btn-refresh').hidden = true;
+  clearError();
+  window.scrollTo(0, 0);
+}
+
+/* ---------- demo data ---------- */
+function fakeHash(seed) {
+  let x = 2166136261 >>> 0;
+  let out = '';
+  for (let i = 0; out.length < 64; i++) {
+    const s = seed + ':' + i;
+    for (let j = 0; j < s.length; j++) { x ^= s.charCodeAt(j); x = Math.imul(x, 16777619) >>> 0; }
+    out += x.toString(16).padStart(8, '0');
+  }
+  return out.slice(0, 64).toUpperCase();
+}
+
+function demoReport() {
+  const R = (pid, process, ip, rp, lp, status, sig, pub, comp, ver, path, note) => ({
+    PID: pid, Process: process, Remote_IP: ip, Remote_Port: rp, Local_Port: lp, Status: status,
+    Signature: sig, Publisher: pub, Company: comp, Version: ver,
+    Hash: path === 'N/A' ? 'N/A' : fakeHash(path), Note: note || '', Path: path,
+  });
+  const chrome = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+  const zoom = 'C:\\Users\\demo\\AppData\\Roaming\\Zoom\\bin\\Zoom.exe';
+  const dl = 'C:\\Users\\demo\\Downloads\\svc_updater.exe';
+  return {
+    schema: 'outbound-connection-auditor/1',
+    generated: new Date().toISOString(),
+    isAdmin: true,
+    connections: [
+      R(4992, 'chrome', '203.0.113.10', 5228, 46331, 'Normal', 'Valid', 'Google LLC', 'Google LLC', '126.0.6478.127', chrome),
+      R(4992, 'chrome', '203.0.113.25', 443, 41891, 'Normal', 'Valid', 'Google LLC', 'Google LLC', '126.0.6478.127', chrome),
+      R(4992, 'chrome', '198.51.100.44', 443, 41902, 'Normal', 'Valid', 'Google LLC', 'Google LLC', '126.0.6478.127', chrome),
+      R(6120, 'msedge', '203.0.113.61', 443, 50122, 'Normal', 'Valid', 'Microsoft Corporation', 'Microsoft Corporation', '126.0.2592.87', 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'),
+      R(7310, 'Discord', '198.51.100.90', 443, 50231, 'Normal', 'Valid', 'Discord Inc.', 'Discord Inc.', '1.0.9152', 'C:\\Users\\demo\\AppData\\Local\\Discord\\app-1.0.9152\\Discord.exe'),
+      R(1196, 'svchost', '203.0.113.130', 443, 49810, 'Normal', 'Valid', 'Microsoft Windows', 'Microsoft Corporation', '10.0.22631.3737', 'C:\\Windows\\System32\\svchost.exe'),
+      R(4316, 'MpDefenderCoreService', '203.0.113.80', 443, 22927, 'Normal (protected process)', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'),
+      R(9284, 'falso_positivo_test', '198.51.100.7', 80, 1984, 'SUSPICIOUS (path/signature)', 'Unsigned', 'N/A', 'N/A', '0.0.0.0', 'D:\\tools\\outbound-connection-auditor\\fake_process\\temp\\falso_positivo_test.exe'),
+      R(8840, 'svc_updater', '203.0.113.200', 8443, 51044, 'SUSPICIOUS (path/signature)', 'Unsigned', 'N/A', 'N/A', '1.0.0.0', dl),
+      R(8840, 'svc_updater', '203.0.113.200', 9001, 51077, 'SUSPICIOUS (path/signature)', 'Unsigned', 'N/A', 'N/A', '1.0.0.0', dl),
+      R(5512, 'Zoom', '198.51.100.120', 443, 50560, 'TO CHECK (path)', 'Valid', 'Zoom Video Communications, Inc.', 'Zoom Video Communications, Inc.', '6.1.5.1234', zoom),
+      R(3301, 'oldsync', '203.0.113.150', 443, 50711, 'TO CHECK (signature)', 'Unsigned', 'N/A', 'OldSync Labs', '2.1.0', 'C:\\Program Files\\OldSync\\oldsync.exe', 'Path is in the whitelist but the file has changed (different hash)'),
+      R(2748, 'backupd', '198.51.100.201', 443, 50891, 'UNVERIFIABLE', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'),
+      R(6650, 'portable_notes', '198.51.100.77', 443, 50944, 'Whitelist', 'Unsigned', 'N/A', 'N/A', '3.4.1', 'D:\\Apps\\PortableNotes\\portable_notes.exe'),
+    ],
+  };
+}
+
+/* ---------- summary ---------- */
+function counts() {
+  const proc = {}, conn = {};
+  for (const c of CATS) { proc[c.id] = 0; conn[c.id] = 0; }
+  for (const p of state.procs) { proc[p.cat.id]++; conn[p.cat.id] += p.conns.length; }
+  return { proc, conn };
+}
+
+function renderSummary() {
+  const { proc, conn } = counts();
+  const total = state.procs.length;
+  const s = proc.suspicious;
+  const k = proc.check + proc.unverifiable;
+
+  let text, color;
+  if (total === 0) { text = 'No external connections were open during the scan.'; color = 'var(--muted)'; }
+  else if (s > 0) { text = s + (s === 1 ? ' suspicious process is' : ' suspicious processes are') + ' connected to the internet.'; color = 'var(--suspicious)'; }
+  else if (k > 0) { text = 'No suspicious processes, but ' + k + (k === 1 ? ' needs' : ' need') + ' a closer look.'; color = 'var(--check)'; }
+  else { text = 'Everything that is connected looks normal.'; color = 'var(--normal)'; }
+  const v = $('#verdict');
+  v.textContent = text;
+  v.style.setProperty('--verdict', color);
+
+  const meta = $('#meta');
+  meta.replaceChildren();
+  const when = state.meta.generated ? new Date(state.meta.generated) : null;
+  if (when && !isNaN(when)) meta.append(h('span', null, 'Scanned ' + when.toLocaleString()));
+  meta.append(h('span', null, state.conns.length + (state.conns.length === 1 ? ' connection' : ' connections') + ' from ' + total + (total === 1 ? ' process' : ' processes')));
+  if (typeof state.meta.isAdmin === 'boolean') meta.append(h('span', null, 'Administrator rights: ' + (state.meta.isAdmin ? 'yes' : 'no')));
+  meta.append(h('span', null, state.isDemo ? 'Demo data' : 'File: ' + state.source));
+
+  const notice = $('#notice');
+  if (state.meta.isAdmin === false) {
+    notice.textContent = 'This report was created without administrator rights, so some file paths could not be read. Run run.bat as administrator for a complete report.';
+    notice.hidden = false;
+  } else if (state.isDemo) {
+    notice.textContent = 'Demo data: every name, address and hash below is made up. Addresses use ranges reserved for documentation.';
+    notice.hidden = false;
+  } else {
+    notice.hidden = true;
+  }
+
+  // status spectrum: one segment per status, width = number of processes
+  const bar = $('#spectrum');
+  bar.replaceChildren();
+  bar.classList.toggle('enter', state.animate);
+  if (total === 0) {
+    bar.append(h('div', { class: 'seg-empty' }));
+  } else {
+    CATS.filter(c => proc[c.id] > 0).forEach((c, i) => {
+      bar.append(h('button', {
+        class: 'seg' + (state.filter !== 'all' && state.filter !== c.id ? ' dim' : ''),
+        type: 'button', tabindex: '-1', 'aria-hidden': 'true',
+        title: c.label + ': ' + proc[c.id] + (proc[c.id] === 1 ? ' process' : ' processes'),
+        style: '--n:' + proc[c.id] + ';--i:' + i + ';--c:var(--' + c.id + ')',
+        onclick: () => toggleFilter(c.id),
+      }));
+    });
+  }
+
+  const legend = $('#legend');
+  legend.replaceChildren();
+  legend.append(h('button', {
+    class: 'legend-item', type: 'button', 'aria-pressed': String(state.filter === 'all'),
+    onclick: () => setFilter('all'),
+  }, h('span', { class: 'sw' }), 'All ', h('span', { class: 'n' }, total)));
+  for (const c of CATS) {
+    if (proc[c.id] === 0) continue;
+    legend.append(h('button', {
+      class: 'legend-item', type: 'button', 'aria-pressed': String(state.filter === c.id),
+      style: '--c:var(--' + c.id + ')',
+      title: proc[c.id] + (proc[c.id] === 1 ? ' process, ' : ' processes, ') + conn[c.id] + (conn[c.id] === 1 ? ' connection' : ' connections'),
+      onclick: () => toggleFilter(c.id),
+    }, h('span', { class: 'sw' }), c.label + ' ', h('span', { class: 'n' }, proc[c.id])));
+  }
+}
+
+function setFilter(id) {
+  state.filter = id;
+  renderSummary();
+  renderTable();
+}
+function toggleFilter(id) { setFilter(state.filter === id ? 'all' : id); }
+
+/* ---------- table ---------- */
+const COLS = {
+  connections: [
+    { key: 'severity', label: 'Status' },
+    { key: 'process', label: 'Process' },
+    { key: 'pid', label: 'PID', num: true },
+    { key: 'remote', label: 'Remote address' },
+    { key: 'local', label: 'Local port', num: true },
+    { key: 'signature', label: 'Signature' },
+  ],
+  processes: [
+    { key: 'severity', label: 'Status' },
+    { key: 'process', label: 'Process' },
+    { key: 'pid', label: 'PID', num: true },
+    { key: 'count', label: 'Connections', num: true },
+    { key: 'signature', label: 'Signature' },
+    { key: 'publisher', label: 'Publisher' },
+  ],
+};
+const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
+function procOf(item) { return state.view === 'connections' ? item.proc : item; }
+
+function sortValue(item, key) {
+  const p = procOf(item);
+  switch (key) {
+    case 'severity': return p.cat.rank;
+    case 'process': return p.process;
+    case 'pid': return p.pid;
+    case 'remote': return item.remoteIp + ':' + String(item.remotePort).padStart(5, '0');
+    case 'local': return item.localPort;
+    case 'count': return item.conns.length;
+    case 'signature': return p.signature;
+    case 'publisher': return p.publisher;
+    default: return '';
+  }
+}
+
+function visibleItems() {
+  const q = state.query;
+  const list = (state.view === 'connections' ? state.conns : state.procs)
+    .filter(it => (state.filter === 'all' || procOf(it).cat.id === state.filter) && (!q || it.searchText.includes(q)));
+  const { key, dir } = state.sort;
+  list.sort((a, b) => {
+    const va = sortValue(a, key), vb = sortValue(b, key);
+    let r = (typeof va === 'number' && typeof vb === 'number') ? va - vb : collator.compare(String(va), String(vb));
+    if (r === 0) {
+      const pa = procOf(a), pb = procOf(b);
+      r = (pa.cat.rank - pb.cat.rank) || collator.compare(pa.process, pb.process) || (pa.pid - pb.pid);
+    }
+    return r * dir;
+  });
+  return list;
+}
+
+function whitelistLine(p) {
+  const d = new Date(), z = n => String(n).padStart(2, '0');
+  const stamp = d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes());
+  return [p.hash.toUpperCase(), p.path, p.process, stamp].join('|');
+}
+const canWhitelist = p => (p.cat.id === 'suspicious' || p.cat.id === 'check') && isHex64(p.hash) && p.path !== 'N/A';
+
+function badge(p) {
+  const reason = reasonOf(p.status);
+  return h('span', null,
+    h('span', { class: 'badge ' + 'cat-' + p.cat.id }, p.cat.label),
+    reason ? h('span', { class: 'reason' }, reason) : null);
+}
+
+function buildDetail(p, colspan) {
+  const field = (label, value, cls) => [h('dt', null, label), h('dd', { class: cls || 'mono' }, value)];
+  const fields = h('dl', { class: 'fields' },
+    field('Status', p.status, ''),
+    p.note ? field('Note', p.note, 'note') : null,
+    field('Path', p.path),
+    field('SHA256', p.hash),
+    field('Signature', p.signature, ''),
+    field('Publisher', p.publisher, ''),
+    field('Company', p.company, ''),
+    field('Version', p.version));
+
+  const list = h('ul', { class: 'connlist mono' },
+    p.conns.map(c => h('li', null, c.remoteIp + ':' + c.remotePort + '  (local port ' + c.localPort + ')')));
+
+  const actions = h('div', { class: 'actions' },
+    p.path !== 'N/A' ? h('button', { class: 'btn', type: 'button', onclick: () => copyText(p.path, 'Path copied') }, 'Copy path') : null,
+    p.hash !== 'N/A' ? h('button', { class: 'btn', type: 'button', onclick: () => copyText(p.hash, 'SHA256 copied') }, 'Copy SHA256') : null,
+    (isHex64(p.hash) && !state.isDemo)
+      ? h('a', {
+          class: 'btn', href: 'https://www.virustotal.com/gui/file/' + p.hash.toLowerCase(),
+          target: '_blank', rel: 'noopener noreferrer',
+          title: 'Opens virustotal.com in a new tab. Only the hash is in the link.',
+        }, 'Look up on VirusTotal')
+      : null,
+    canWhitelist(p) ? h('button', { class: 'btn', type: 'button', onclick: () => copyText(whitelistLine(p), 'Whitelist line copied') }, 'Copy whitelist line') : null);
+
+  return h('tr', { class: 'detail' },
+    h('td', { colspan: String(colspan) },
+      fields,
+      h('p', { class: 'detail-title' }, p.conns.length === 1 ? 'Connection' : 'Connections (' + p.conns.length + ')'),
+      list,
+      actions));
+}
+
+function makeRow(item, key, cols) {
+  const p = procOf(item);
+  const conn = state.view === 'connections';
+  const tr = h('tr', { class: 'row cat-' + p.cat.id });
+  let detail = null;
+
+  const setOpen = open => {
+    if (open) {
+      state.open.add(key);
+      if (!detail) detail = buildDetail(p, cols.length + 1);
+      tr.after(detail);
+    } else {
+      state.open.delete(key);
+      if (detail) detail.remove();
+    }
+    btn.setAttribute('aria-expanded', String(open));
+    tr.classList.toggle('open', open);
+  };
+
+  const btn = h('button', {
+    class: 'chev', type: 'button', 'aria-expanded': 'false',
+    'aria-label': 'Show details for ' + p.process + ', PID ' + p.pid,
+    onclick: e => { e.stopPropagation(); setOpen(!state.open.has(key)); },
+  });
+
+  tr.append(
+    h('td', null, badge(p)),
+    h('td', { class: 'proc' }, p.process),
+    h('td', { class: 'num mono' }, p.pid));
+  if (conn) {
+    tr.append(
+      h('td', { class: 'mono' }, item.remoteIp + ':' + item.remotePort),
+      h('td', { class: 'num mono' }, item.localPort),
+      h('td', null, p.signature));
+  } else {
+    tr.append(
+      h('td', { class: 'num' }, item.conns.length),
+      h('td', null, p.signature),
+      h('td', null, p.publisher));
+  }
+  tr.append(h('td', { class: 'chevcell' }, btn));
+  tr.addEventListener('click', () => setOpen(!state.open.has(key)));
+  return { tr, setOpen };
+}
+
+function renderTable() {
+  const cols = COLS[state.view];
+  const items = visibleItems();
+  const totalItems = (state.view === 'connections' ? state.conns : state.procs).length;
+  const noun = state.view === 'connections' ? 'connections' : 'processes';
+  $('#count').textContent = 'Showing ' + items.length + ' of ' + totalItems + ' ' + noun;
+
+  const wrap = $('#tablewrap');
+  wrap.replaceChildren();
+
+  if (items.length === 0) {
+    wrap.append(h('div', { class: 'empty' },
+      h('p', null, totalItems === 0 ? 'The report contains no external connections.' : 'No rows match the current filter or search.'),
+      totalItems === 0 ? null : h('button', { class: 'btn', type: 'button', onclick: clearFilters }, 'Clear filters')));
+    return;
+  }
+
+  const head = h('tr', null,
+    cols.map(c => h('th', {
+      class: c.num ? 'num' : null,
+      scope: 'col',
+      'aria-sort': state.sort.key === c.key ? (state.sort.dir === 1 ? 'ascending' : 'descending') : null,
+    }, h('button', { type: 'button', onclick: () => sortBy(c.key) }, c.label))),
+    h('th', { scope: 'col' }, h('span', { class: 'sr' }, 'Details')));
+
+  const body = h('tbody');
+  for (const item of items) {
+    const key = (state.view === 'connections' ? 'c' : 'p') + (state.view === 'connections' ? item.idx : item.pid);
+    const row = makeRow(item, key, cols);
+    body.append(row.tr);
+    if (state.open.has(key)) row.setOpen(true);
+  }
+  wrap.append(h('table', null, h('thead', null, head), body));
+}
+
+function sortBy(key) {
+  if (state.sort.key === key) state.sort.dir *= -1;
+  else state.sort = { key, dir: 1 };
+  renderTable();
+}
+function clearFilters() {
+  state.filter = 'all';
+  state.query = '';
+  $('#search').value = '';
+  renderSummary();
+  renderTable();
+}
+function setView(view) {
+  state.view = view;
+  state.sort = { key: 'severity', dir: 1 };
+  state.open = new Set();
+  syncToolbar();
+  renderTable();
+}
+function syncToolbar() {
+  $('#view-connections').setAttribute('aria-pressed', String(state.view === 'connections'));
+  $('#view-processes').setAttribute('aria-pressed', String(state.view === 'processes'));
+  const n = state.procs.filter(canWhitelist).length;
+  $('#btn-whitelist').disabled = n === 0;
+  $('#btn-whitelist').title = n === 0 ? 'No suspicious or to-check process with a readable hash in this report.' : '';
+  $('#btn-csv').disabled = state.conns.length === 0;
+}
+function renderReport() {
+  renderSummary();
+  syncToolbar();
+  renderTable();
+}
+
+/* ---------- clipboard, downloads, toast ---------- */
+let toastTimer = 0;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+function fallbackCopy(text) {
+  const ta = h('textarea', { 'aria-hidden': 'true', tabindex: '-1', style: 'position:fixed;top:-1000px;opacity:0' });
+  ta.value = text;
+  document.body.append(ta);
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+  ta.remove();
+  return ok;
+}
+async function copyText(text, msg) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(msg);
+  } catch (e) {
+    toast(fallbackCopy(text) ? msg : 'Copy was blocked by the browser');
+  }
+}
+function download(name, text, type) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = h('a', { href: url, download: name });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function csvCell(v) {
+  let s = String(v === null || v === undefined ? '' : v);
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; // stop spreadsheet formula injection
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+function exportCsv() {
+  const saved = state.view;
+  state.view = 'connections';
+  const rows = visibleItems();
+  state.view = saved;
+  const head = ['Status', 'PID', 'Process', 'Remote IP', 'Remote port', 'Local port', 'Signature', 'Publisher', 'Company', 'Version', 'SHA256', 'Note', 'Path'];
+  const lines = [head.map(csvCell).join(',')];
+  for (const c of rows) {
+    lines.push([c.status, c.pid, c.process, c.remoteIp, c.remotePort, c.localPort, c.signature, c.publisher, c.company, c.version, c.hash, c.note, c.path].map(csvCell).join(','));
+  }
+  download('outbound-connections.csv', '\uFEFF' + lines.join('\r\n') + '\r\n', 'text/csv;charset=utf-8');
+  toast('CSV exported');
+}
+
+/* ---------- whitelist dialog ---------- */
+let wlItems = [];
+function wlRefresh() {
+  const lines = wlItems.filter(x => x.box.checked).map(x => whitelistLine(x.p));
+  $('#wl-out').value = lines.join('\n');
+  $('#wl-copy').disabled = lines.length === 0;
+  $('#wl-dl').disabled = lines.length === 0;
+}
+function openWhitelist() {
+  const list = $('#wl-list');
+  list.replaceChildren();
+  wlItems = state.procs.filter(canWhitelist).map(p => {
+    const box = h('input', { type: 'checkbox', onchange: wlRefresh });
+    list.append(h('label', null, box, h('span', null,
+      h('strong', null, p.process + ' '), h('span', { class: 'badge cat-' + p.cat.id }, p.cat.label),
+      h('span', { class: 'path mono' }, p.path))));
+    return { p, box };
+  });
+  wlRefresh();
+  $('#wl').showModal();
+}
+
+/* ---------- theme ---------- */
+const THEMES = ['auto', 'light', 'dark'];
+let theme = 'auto';
+function applyTheme(t) {
+  theme = t;
+  if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', t);
+  $('#btn-theme').textContent = 'Theme: ' + t;
+}
+
+/* ---------- wiring ---------- */
+function init() {
+  try {
+    const saved = localStorage.getItem('oca-theme');
+    if (THEMES.includes(saved)) applyTheme(saved);
+  } catch (e) { /* storage may be blocked: keep auto */ }
+
+  $('#btn-theme').addEventListener('click', () => {
+    const next = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+    applyTheme(next);
+    try { localStorage.setItem('oca-theme', next); } catch (e) { /* ignore */ }
+  });
+
+  const input = $('#file-input');
+  const dz = $('#dropzone');
+  const choose = () => chooseFile();
+  $('#btn-choose').addEventListener('click', choose);
+  dz.addEventListener('click', choose);
+  dz.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } });
+  input.addEventListener('change', () => { const f = input.files[0]; if (f) readFile(f); input.value = ''; });
+
+  // dropping a file anywhere on the page loads it (and stops the browser from opening it)
+  window.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+  window.addEventListener('dragleave', e => { if (!e.relatedTarget) dz.classList.remove('over'); });
+  window.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('over');
+    const dt = e.dataTransfer;
+    const f = dt && dt.files && dt.files[0];
+    if (!f) return;
+    // Chrome/Edge: ask for a handle while the drop event is still active, so Refresh can work later
+    const item = dt.items && dt.items[0];
+    const handleRequest = (item && item.kind === 'file' && typeof item.getAsFileSystemHandle === 'function')
+      ? item.getAsFileSystemHandle() : null;
+    if (handleRequest) {
+      handleRequest
+        .then(hd => (hd && hd.kind === 'file') ? readHandle(hd, false) : readFile(f))
+        .catch(() => readFile(f));
+    } else {
+      readFile(f);
+    }
+  });
+
+  $('#btn-demo').addEventListener('click', () => loadText(JSON.stringify(demoReport()), 'demo', { isDemo: true, origin: 'demo' }));
+  $('#btn-load-paste').addEventListener('click', () => {
+    const t = $('#paste-text').value.trim();
+    if (!t) { showError('Paste the contents of outbound-connection-report.json first.'); return; }
+    loadText(t, 'pasted JSON', { origin: 'paste' });
+  });
+  $('#btn-new').addEventListener('click', backToLanding);
+  $('#btn-refresh').addEventListener('click', refreshReport);
+
+  $('#search').addEventListener('input', e => { state.query = e.target.value.trim().toLowerCase(); renderTable(); });
+  $('#view-connections').addEventListener('click', () => setView('connections'));
+  $('#view-processes').addEventListener('click', () => setView('processes'));
+  $('#btn-csv').addEventListener('click', exportCsv);
+  $('#btn-whitelist').addEventListener('click', openWhitelist);
+
+  $('#wl-close').addEventListener('click', () => $('#wl').close());
+  $('#wl-copy').addEventListener('click', () => copyText($('#wl-out').value, 'Whitelist lines copied'));
+  $('#wl-dl').addEventListener('click', () => {
+    download('whitelist-additions.txt', $('#wl-out').value + '\r\n', 'text/plain;charset=utf-8');
+    toast('Lines downloaded');
+  });
+
+  // tell the reader up front whether "Refresh report" can work in this browser
+  const hint = $('#browser-hint');
+  if (servedLocally()) {
+    fetchNeighbour(false).catch(() => { /* no report next to the page yet: stay on the landing view */ });
+  } else if (typeof window.showOpenFilePicker !== 'function') {
+    hint.textContent = 'This browser cannot re-read a file by itself, so Refresh report will not be available. Chrome and Edge support it; elsewhere, load the file again after each scan.';
+    hint.hidden = false;
+  }
+}
+
+init();
+
+})();
+</script>
+</body>
+</html>
