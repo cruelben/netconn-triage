@@ -1,1208 +1,1693 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
-<!-- The page may only contact the address it was loaded from (used on localhost to find the report next to it). Everything else is blocked. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
-<title>Outbound Connection Auditor - report viewer</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b5c78'/%3E%3Cpath d='M8 21a11 11 0 0 1 16 0M11.5 17.5a6 6 0 0 1 9 0' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='23' r='2' fill='white'/%3E%3C/svg%3E">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Full Check - Report Viewer</title>
 <style>
-:root {
-  --bg: #eef1f4;
-  --surface: #ffffff;
-  --surface-2: #f5f7f9;
-  --ink: #14202b;
-  --muted: #566573;
-  --rule: #d2d9e0;
-  --brand: #0b5c78;
-  --on-brand: #ffffff;
-  --suspicious: #b3261e;
-  --check: #9a5b00;
-  --unverifiable: #6250a0;
-  --whitelist: #0b7266;
-  --normal: #38764a;
-  --suspicious-bg: #fbe7e4;
-  --check-bg: #fbefd6;
-  --unverifiable-bg: #ece8f7;
-  --whitelist-bg: #dbf1ee;
-  --normal-bg: #e2f1e6;
-  color-scheme: light dark;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0d1319;
-    --surface: #131b23;
-    --surface-2: #18222c;
-    --ink: #e5ebf0;
-    --muted: #95a3b0;
-    --rule: #28343f;
-    --brand: #62c3e4;
-    --on-brand: #06202b;
-    --suspicious: #ff8078;
-    --check: #e9b949;
-    --unverifiable: #bba9f7;
-    --whitelist: #4fd3c1;
-    --normal: #73cf8c;
-    --suspicious-bg: #3b1a19;
-    --check-bg: #382b10;
-    --unverifiable-bg: #28223f;
-    --whitelist-bg: #0f3130;
-    --normal-bg: #172d1f;
+  :root {
+    --bg:        #1e1e2e;
+    --bg-alt:    #2a2a3e;
+    --bg-card:   #313145;
+    --text:      #e0e0e0;
+    --text-dim:  #a0a0b0;
+    --border:    #404055;
+    --accent:    #7aa2f7;
+    --red:       #f7768e;
+    --yellow:    #e0af68;
+    --green:     #9ece6a;
+    --gray:      #565f89;
   }
-}
-:root[data-theme="dark"] {
-  --bg: #0d1319;
-  --surface: #131b23;
-  --surface-2: #18222c;
-  --ink: #e5ebf0;
-  --muted: #95a3b0;
-  --rule: #28343f;
-  --brand: #62c3e4;
-  --on-brand: #06202b;
-  --suspicious: #ff8078;
-  --check: #e9b949;
-  --unverifiable: #bba9f7;
-  --whitelist: #4fd3c1;
-  --normal: #73cf8c;
-  --suspicious-bg: #3b1a19;
-  --check-bg: #382b10;
-  --unverifiable-bg: #28223f;
-  --whitelist-bg: #0f3130;
-  --normal-bg: #172d1f;
-  color-scheme: dark;
-}
-:root[data-theme="light"] { color-scheme: light; }
 
-* { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--ink);
-  font: 15px/1.5 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
-}
-.mono, code, kbd {
-  font-family: "Cascadia Mono", "Cascadia Code", Consolas, "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: .92em;
-}
-code {
-  background: var(--surface-2);
-  border: 1px solid var(--rule);
-  border-radius: 3px;
-  padding: .05em .35em;
-}
-button, input, textarea { font: inherit; color: inherit; }
-:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
-[hidden] { display: none !important; }
-.sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  * { box-sizing: border-box; }
 
-.skip {
-  position: absolute; left: -999px; top: 0;
-  background: var(--brand); color: var(--on-brand);
-  padding: .5rem .9rem; z-index: 10; border-radius: 0 0 4px 0;
-}
-.skip:focus { left: 0; }
+  body {
+    font-family: 'Segoe UI', Consolas, monospace;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 20px;
+    font-size: 14px;
+  }
 
-/* ---------- header ---------- */
-.top {
-  max-width: 1200px; margin: 0 auto;
-  padding: 1.1rem 1.5rem;
-  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
-}
-.brand { display: flex; align-items: center; gap: .75rem; }
-.brand svg { flex: none; }
-.brand-name { margin: 0; font-weight: 650; letter-spacing: -.01em; line-height: 1.2; }
-.brand-sub { margin: 0; color: var(--muted); font-size: .85rem; line-height: 1.2; }
-.top-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+  h1 {
+    color: var(--accent);
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 10px;
+    margin-top: 0;
+  }
 
-.btn {
-  border: 1px solid var(--rule);
-  background: var(--surface);
-  border-radius: 4px;
-  padding: .38rem .8rem;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-flex; align-items: center; gap: .4rem;
-  line-height: 1.3;
-  font-size: .9rem;
-}
-.btn:hover:not(:disabled) { border-color: var(--muted); }
-.btn:disabled { opacity: .45; cursor: not-allowed; }
-.btn.primary { background: var(--brand); color: var(--on-brand); border-color: var(--brand); font-weight: 600; }
-.btn.primary:hover:not(:disabled) { filter: brightness(1.08); border-color: var(--brand); }
+  .container { max-width: 1400px; margin: 0 auto; }
 
-main { max-width: 1200px; margin: 0 auto; padding: 1rem 1.5rem 3rem; }
+  .header-info {
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: center;
+  }
 
-/* ---------- landing ---------- */
-.landing-title {
-  font-size: clamp(1.9rem, 4.2vw, 3rem);
-  line-height: 1.1; letter-spacing: -.025em; font-weight: 650;
-  margin: 1.5rem 0 .75rem; max-width: 20ch;
-}
-.lead { max-width: 62ch; color: var(--muted); margin: 0 0 1.75rem; font-size: 1.05rem; }
-.dropzone {
-  display: block; width: 100%;
-  border: 2px dashed var(--rule);
-  border-radius: 6px;
-  background: var(--surface);
-  padding: 2.4rem 1.5rem;
-  text-align: left;
-  cursor: pointer;
-}
-.dropzone:hover, .dropzone.over { border-color: var(--brand); background: var(--surface-2); }
-.dropzone strong { display: block; font-size: 1.25rem; font-weight: 600; margin-bottom: .2rem; }
-.dropzone span { color: var(--muted); }
-.landing-actions { display: flex; gap: .6rem; flex-wrap: wrap; margin: 1rem 0; }
-details.paste { margin: .25rem 0 1rem; }
-details.paste summary { cursor: pointer; color: var(--brand); font-weight: 600; width: max-content; }
-details.paste textarea {
-  display: block; width: 100%; min-height: 9rem; margin: .6rem 0;
-  background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: .6rem;
-  resize: vertical;
-}
-.hint { color: var(--muted); font-size: .9rem; margin: 0 0 1rem; max-width: 70ch; }
-.error {
-  border-left: 5px solid var(--suspicious);
-  background: var(--suspicious-bg);
-  padding: .7rem 1rem; margin: 1rem 0; border-radius: 0 4px 4px 0;
-}
-.steps { margin: 2rem 0 1rem; padding-left: 1.3rem; max-width: 70ch; }
-.steps li { margin: .35rem 0; padding-left: .3rem; }
-.privacy {
-  max-width: 70ch; color: var(--muted);
-  border-top: 1px solid var(--rule); padding-top: 1rem; margin-top: 1.5rem;
-}
+  .header-info span { color: var(--text-dim); }
+  .header-info strong { color: var(--text); }
 
-/* ---------- report header ---------- */
-.verdict {
-  margin: 1rem 0 .6rem;
-  padding-left: 1rem;
-  border-left: 6px solid var(--verdict, var(--rule));
-  font-size: clamp(1.7rem, 3.6vw, 2.6rem);
-  line-height: 1.12; letter-spacing: -.02em; font-weight: 650;
-  max-width: 24ch;
-}
-.verdict:focus { outline: none; }
-.meta { margin: 0 0 1rem; color: var(--muted); display: flex; flex-wrap: wrap; row-gap: .2rem; }
-.meta span { padding-right: 1rem; margin-right: 1rem; border-right: 1px solid var(--rule); }
-.meta span:last-child { border-right: 0; margin-right: 0; padding-right: 0; }
-.notice {
-  border-left: 5px solid var(--check);
-  background: var(--check-bg);
-  padding: .6rem 1rem; margin: 0 0 1rem; border-radius: 0 4px 4px 0; max-width: 80ch;
-}
+  .header-info .reload-btn {
+    margin-left: auto;
+    background: var(--accent);
+    color: #1e1e2e;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.9em;
+    font-weight: bold;
+    transition: all 0.15s;
+  }
 
-/* ---------- status spectrum ---------- */
-.spectrum { display: flex; gap: 3px; height: 30px; margin: 1.1rem 0 .7rem; }
-.seg {
-  flex: var(--n) 1 0%; min-width: 12px;
-  border: 0; border-radius: 3px; padding: 0; cursor: pointer;
-  background: var(--c);
-  transition: opacity .15s;
-}
-.seg.dim { opacity: .25; }
-.seg-empty { flex: 1; border-radius: 3px; background: var(--rule); }
-.spectrum.enter .seg { animation: grow .75s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i) * 80ms); transform-origin: left center; }
-@keyframes grow { from { transform: scaleX(0); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .spectrum.enter .seg { animation: none; } }
+  .header-info .reload-btn:hover {
+    background: #99b8ff;
+    transform: translateY(-1px);
+  }
 
-.legend { display: flex; flex-wrap: wrap; gap: .4rem .5rem; margin: 0 0 1.6rem; }
-.legend-item {
-  display: inline-flex; align-items: center; gap: .5rem;
-  background: transparent; border: 1px solid var(--rule); border-radius: 999px;
-  padding: .22rem .8rem .22rem .6rem; cursor: pointer; font-size: .9rem;
-}
-.legend-item:hover { border-color: var(--muted); }
-.legend-item[aria-pressed="true"] { background: var(--surface); border-color: var(--ink); font-weight: 600; }
-.legend-item .sw { width: .7rem; height: .7rem; border-radius: 2px; background: var(--c, var(--muted)); }
-.legend-item .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .global-controls {
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
 
-/* ---------- toolbar ---------- */
-.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-bottom: .8rem; }
-.search {
-  flex: 1 1 16rem; max-width: 26rem;
-  background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
-  padding: .4rem .7rem;
-}
-.seg-control { display: inline-flex; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; background: var(--surface); }
-.seg-control button { border: 0; background: transparent; padding: .38rem .85rem; cursor: pointer; font-size: .9rem; }
-.seg-control button + button { border-left: 1px solid var(--rule); }
-.seg-control button[aria-pressed="true"] { background: var(--ink); color: var(--bg); font-weight: 600; }
-.spacer { flex: 1; }
-.count { color: var(--muted); font-size: .88rem; margin: 0 0 .5rem; }
+  .global-controls .title {
+    color: var(--text-dim);
+    font-size: 0.9em;
+    margin-right: 8px;
+  }
 
-/* ---------- table ---------- */
-.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; }
-table { width: 100%; border-collapse: collapse; }
-th { text-align: left; font-weight: 600; font-size: .85rem; color: var(--muted); white-space: nowrap; border-bottom: 1px solid var(--rule); padding: 0; }
-th button {
-  all: unset; box-sizing: border-box; cursor: pointer; width: 100%;
-  padding: .55rem .75rem; display: flex; align-items: center; gap: .35rem;
-}
-th button:hover { color: var(--ink); }
-th button:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
-th[aria-sort="ascending"] button::after { content: "\25B2"; font-size: .6rem; }
-th[aria-sort="descending"] button::after { content: "\25BC"; font-size: .6rem; }
-th[aria-sort] { color: var(--ink); }
-th.num button { justify-content: flex-end; }
-td { padding: .5rem .75rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
-td.num { text-align: right; font-variant-numeric: tabular-nums; }
-tr.row { cursor: pointer; }
-tr.row:hover td { background: var(--surface-2); }
-tr.row td:first-child { box-shadow: inset 4px 0 0 var(--cat, transparent); }
-tr.row.open td { background: var(--surface-2); }
-td.proc { font-weight: 600; word-break: break-word; }
-td.chevcell { width: 2.4rem; padding: .3rem .4rem; text-align: right; }
-.chev {
-  all: unset; box-sizing: border-box; cursor: pointer; width: 1.8rem; height: 1.8rem;
-  display: inline-grid; place-items: center; border-radius: 4px; color: var(--muted);
-}
-.chev:hover { background: var(--rule); color: var(--ink); }
-.chev:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
-.chev::before { content: "\25B8"; font-size: .85rem; transition: transform .12s; }
-.chev[aria-expanded="true"]::before { transform: rotate(90deg); }
-@media (prefers-reduced-motion: reduce) { .chev::before { transition: none; } }
+  .global-controls button {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.9em;
+    transition: all 0.15s;
+  }
 
-.cat-suspicious { --cat: var(--suspicious); --cat-bg: var(--suspicious-bg); }
-.cat-check { --cat: var(--check); --cat-bg: var(--check-bg); }
-.cat-unverifiable { --cat: var(--unverifiable); --cat-bg: var(--unverifiable-bg); }
-.cat-whitelist { --cat: var(--whitelist); --cat-bg: var(--whitelist-bg); }
-.cat-normal { --cat: var(--normal); --cat-bg: var(--normal-bg); }
+  .global-controls button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 
-.badge {
-  display: inline-flex; align-items: center; gap: .4rem;
-  padding: .1rem .6rem; border-radius: 999px; white-space: nowrap;
-  background: var(--cat-bg); color: var(--cat);
-  font-size: .82rem; font-weight: 650;
-}
-.badge::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; }
-.reason { display: block; color: var(--muted); font-size: .8rem; margin-top: .15rem; }
+  .global-controls button.active {
+    background: var(--accent);
+    color: #1e1e2e;
+    border-color: var(--accent);
+    font-weight: bold;
+  }
 
-.detail td { background: var(--surface-2); padding: 1rem 1rem 1.25rem 1.5rem; }
-.fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .35rem 1.4rem; margin: 0 0 1rem; }
-.fields dt { color: var(--muted); }
-.fields dd { margin: 0; overflow-wrap: anywhere; }
-.fields dd.note { color: var(--check); font-weight: 600; }
-.connlist { margin: 0 0 1rem; padding: 0; list-style: none; }
-.connlist li { padding: .1rem 0; }
-.detail-title { margin: 0 0 .35rem; font-size: .85rem; font-weight: 600; color: var(--muted); }
-.actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .global-controls button.action {
+    background: var(--green);
+    color: #1e1e2e;
+    border-color: var(--green);
+    font-weight: bold;
+  }
 
-.empty { padding: 2rem 1.25rem; }
-.empty p { margin: 0 0 .75rem; }
+  .global-controls button.action:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #1e1e2e;
+  }
 
-/* ---------- dialog ---------- */
-dialog {
-  width: min(46rem, calc(100vw - 2rem));
-  background: var(--surface); color: var(--ink);
-  border: 1px solid var(--rule); border-radius: 6px; padding: 1.4rem;
-}
-dialog::backdrop { background: rgba(8, 12, 16, .55); }
-dialog h2 { margin: 0 0 .4rem; font-size: 1.3rem; letter-spacing: -.01em; }
-dialog p { margin: 0 0 .8rem; color: var(--muted); }
-.wl-list { max-height: 15rem; overflow: auto; border: 1px solid var(--rule); border-radius: 4px; margin: 0 0 .9rem; }
-.wl-list label { display: flex; gap: .6rem; align-items: flex-start; padding: .5rem .7rem; border-bottom: 1px solid var(--rule); cursor: pointer; }
-.wl-list label:last-child { border-bottom: 0; }
-.wl-list input { margin-top: .3rem; flex: none; }
-.wl-list .path { color: var(--muted); display: block; overflow-wrap: anywhere; font-size: .85rem; }
-dialog textarea {
-  display: block; width: 100%; min-height: 7rem; resize: vertical;
-  background: var(--surface-2); border: 1px solid var(--rule); border-radius: 4px; padding: .6rem;
-  margin-bottom: .9rem; font-size: .82rem;
-}
-.dialog-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .global-controls .separator {
+    width: 1px;
+    height: 24px;
+    background: var(--border);
+    margin: 0 4px;
+  }
 
-/* ---------- footer, toast ---------- */
-footer { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem 2.5rem; color: var(--muted); font-size: .85rem; }
-.toast {
-  position: fixed; left: 50%; bottom: 1.5rem; transform: translate(-50%, 1rem);
-  background: var(--ink); color: var(--bg);
-  padding: .5rem 1rem; border-radius: 4px; opacity: 0; pointer-events: none;
-  transition: opacity .15s, transform .15s; z-index: 20;
-}
-.toast.show { opacity: 1; transform: translate(-50%, 0); }
-@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+  .upload-box {
+    background: var(--bg-alt);
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    margin-bottom: 20px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
 
-@media (max-width: 640px) {
-  .top, main, footer { padding-left: 1rem; padding-right: 1rem; }
-  .fields { grid-template-columns: 1fr; gap: 0; }
-  .fields dt { margin-top: .5rem; }
-}
+  .upload-box:hover { border-color: var(--accent); }
+
+  .upload-box input[type="file"] { display: none; }
+
+  .upload-box label {
+    cursor: pointer;
+    color: var(--accent);
+    font-size: 1.1em;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 0;
+    border-bottom: 2px solid var(--border);
+  }
+
+  .tab {
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    padding: 10px 20px;
+    cursor: pointer;
+    color: var(--text-dim);
+    font-size: 0.95em;
+    transition: all 0.15s;
+    position: relative;
+    top: 2px;
+  }
+
+  .tab:hover { color: var(--text); background: var(--bg-card); }
+
+  .tab.active {
+    background: var(--green);
+    color: #1e1e2e;
+    border-bottom: 2px solid var(--green);
+    font-weight: bold;
+  }
+
+  .tab .badge {
+    display: inline-block;
+    background: var(--gray);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 0.75em;
+    margin-left: 6px;
+    font-weight: normal;
+  }
+
+  .tab .badge.red    { background: var(--red);    color: #1e1e2e; }
+  .tab .badge.yellow { background: var(--yellow); color: #1e1e2e; }
+  .tab .badge.green  { background: var(--green);  color: #1e1e2e; }
+
+  .tab-content {
+    display: none;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    padding: 16px;
+  }
+
+  .tab-content.active { display: block; }
+
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+
+  .filters input[type="text"] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.9em;
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .filters input[type="text"]:focus { outline: none; border-color: var(--accent); }
+
+  .filters button {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.9em;
+    transition: all 0.15s;
+  }
+
+  .filters button:hover {
+    background: var(--bg-alt);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85em;
+    background: var(--bg);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  th {
+    background: var(--bg-alt);
+    color: var(--accent);
+    text-align: left;
+    padding: 10px 8px;
+    border-bottom: 2px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  th:hover { background: var(--bg-card); }
+
+  th .sort-arrow { color: var(--text-dim); margin-left: 4px; font-size: 0.8em; }
+
+  td {
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tr:hover { background: var(--bg-alt); }
+
+  .status-Normal              { color: var(--green); }
+  .status-NormalDisabled      { color: var(--gray); }
+  .status-NormalSystem        { color: var(--gray); }
+  .status-Whitelist           { color: var(--gray); }
+  .status-TCHECK              { color: var(--yellow); }
+  .status-UNVERIFIABLE        { color: var(--yellow); }
+  .status-SUSPICIOUS          { color: var(--red); font-weight: bold; }
+
+  .vt-link {
+    text-decoration: none;
+    color: var(--accent);
+    font-size: 0.9em;
+    padding: 2px 6px;
+    border-radius: 3px;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+
+  .vt-link:hover { background: var(--bg-alt); }
+  .vt-link.dim { color: var(--text-dim); }
+  .vt-link.google { color: var(--yellow); }
+  .vt-empty { color: var(--text-dim); font-size: 0.8em; }
+
+  .raw-cmd {
+    font-family: Consolas, monospace;
+    font-size: 0.8em;
+    color: var(--yellow);
+    word-break: break-all;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-dim);
+  }
+
+  .summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+
+  .summary-card {
+    background: var(--bg-alt);
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 16px;
+    min-width: 120px;
+    user-select: none;
+  }
+
+  .summary-card.clickable {
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .summary-card.clickable:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+
+  .summary-card.static {
+    cursor: default;
+  }
+
+  .summary-card.active {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .summary-card.active .value,
+  .summary-card.active .label {
+    color: #1e1e2e !important;
+  }
+
+  .summary-card .value {
+    font-size: 1.6em;
+    font-weight: bold;
+    display: block;
+  }
+
+  .summary-card .label {
+    color: var(--text-dim);
+    font-size: 0.8em;
+    text-transform: uppercase;
+  }
+
+  .summary-card.green  .value { color: var(--green); }
+  .summary-card.yellow .value { color: var(--yellow); }
+  .summary-card.red    .value { color: var(--red); }
+  .summary-card.gray   .value { color: var(--gray); }
+
+  .summary-note {
+    color: var(--text-dim);
+    font-size: 0.85em;
+    font-style: italic;
+    margin-left: auto;
+  }
+
+  .detail-row { display: none; background: var(--bg-alt); }
+  .detail-row.open { display: table-row; }
+
+  .detail-row td {
+    padding: 12px 20px;
+    font-size: 0.85em;
+  }
+
+  .detail-row .kv {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 6px 12px;
+  }
+
+  .detail-row .kv .k { color: var(--text-dim); }
+  .detail-row .kv .v {
+    color: var(--text);
+    word-break: break-all;
+    font-family: Consolas, monospace;
+  }
+
+  .expand-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 3px;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-size: 0.8em;
+  }
+
+  .expand-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  .cb-cell { text-align: center; }
+  .cb-cell input { cursor: pointer; }
+
+  .action-select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 6px;
+    border-radius: 3px;
+    font-size: 0.85em;
+    font-family: inherit;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--green);
+    color: #1e1e2e;
+    padding: 12px 20px;
+    border-radius: 6px;
+    font-weight: bold;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  .toast.show { opacity: 1; }
+
+  @media (max-width: 800px) {
+    body { padding: 10px; }
+    .tabs { flex-wrap: wrap; }
+    .tab { font-size: 0.85em; padding: 8px 12px; }
+    th, td { padding: 6px 4px; font-size: 0.8em; }
+  }
 </style>
 </head>
 <body>
-<a class="skip" href="#main">Skip to content</a>
+<div class="container">
 
-<header class="top">
-  <div class="brand">
-    <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="7" fill="var(--brand)"/>
-      <path d="M8 21a11 11 0 0 1 16 0M11.5 17.5a6 6 0 0 1 9 0" fill="none" stroke="var(--on-brand)" stroke-width="2.4" stroke-linecap="round"/>
-      <circle cx="16" cy="23" r="2" fill="var(--on-brand)"/>
-    </svg>
+  <h1>🔍 Full Check - Report Viewer</h1>
+
+  <div class="upload-box" id="uploadBox">
+    <input type="file" id="fileInput" accept=".json,application/json">
+    <label for="fileInput">
+      📁 Click to load <strong>controllo-completo-report.json</strong><br>
+      <small style="color: var(--text-dim);">or drag and drop it here</small>
+    </label>
+  </div>
+
+  <div class="header-info" id="headerInfo" style="display: none;">
+    <div><span>Generated:</span> <strong id="infoGenerated">-</strong></div>
+    <div><span>Admin:</span> <strong id="infoAdmin">-</strong></div>
     <div>
-      <p class="brand-name">Outbound Connection Auditor</p>
-      <p class="brand-sub">Report viewer</p>
+      <span>Connections:</span>
+      <strong id="infoConns">0</strong><span id="infoConnsWl"></span>
+    </div>
+    <div>
+      <span>Services:</span>
+      <strong id="infoSvcs">0</strong><span id="infoSvcsWl"></span>
+    </div>
+    <div>
+      <span>Tasks:</span>
+      <strong id="infoTasks">0</strong><span id="infoTasksWl"></span>
+    </div>
+    <button class="reload-btn" onclick="resetUpload()">📁 Load new JSON</button>
+  </div>
+
+  <div class="global-controls" id="globalControls" style="display: none;">
+    <span class="title">Filter:</span>
+    <button id="btnOnlyReview" onclick="setGlobalFilter('review')" class="active">
+      ⚠️ Filtered
+    </button>
+    <button id="btnShowAll" onclick="setGlobalFilter('all')">
+      📋 Show all
+    </button>
+    <div class="separator"></div>
+    <span class="title">Actions:</span>
+    <button id="btnExportWhitelist" class="action" onclick="exportWhitelistFromWeb()">
+      ✅ Export whitelist_from_web.txt
+    </button>
+    <button id="btnExportRepair" class="action" onclick="exportRepair()">
+      🔧 Repair selected
+    </button>
+  </div>
+
+  <div class="tabs" id="tabs" style="display: none;">
+    <div class="tab active" data-tab="connections">
+      🌐 Connections <span class="badge" id="badgeConns">0</span>
+    </div>
+    <div class="tab" data-tab="services">
+      ⚙️ Services <span class="badge" id="badgeSvcs">0</span>
+    </div>
+    <div class="tab" data-tab="tasks">
+      📅 Tasks <span class="badge" id="badgeTasks">0</span>
     </div>
   </div>
-  <div class="top-actions">
-    <button class="btn" id="btn-refresh" type="button" hidden title="Read the same report file again">Refresh report</button>
-    <button class="btn" id="btn-new" type="button" hidden>Load another report</button>
-    <button class="btn" id="btn-theme" type="button">Theme: auto</button>
+
+  <div class="tab-content active" id="tab-connections">
+    <div class="summary" id="summaryConns"></div>
+    <div class="filters">
+      <input type="text" id="filterConns" placeholder="🔍 Search (process, IP, path, hash, publisher...)">
+      <button onclick="selectAllTab('connections')">☑ Select all</button>
+      <button onclick="deselectAllTab('connections')">☐ Deselect</button>
+      <button onclick="exportCSV('connections')">📥 CSV</button>
+    </div>
+    <table id="tableConns">
+      <thead>
+        <tr>
+          <th class="cb-cell">W</th>
+          <th class="cb-cell">A</th>
+          <th data-sort="PID">PID <span class="sort-arrow"></span></th>
+          <th data-sort="Name">Process <span class="sort-arrow"></span></th>
+          <th data-sort="Remote_IP">Remote IP <span class="sort-arrow"></span></th>
+          <th data-sort="Remote_Port">Port <span class="sort-arrow"></span></th>
+          <th data-sort="Status">Status <span class="sort-arrow"></span></th>
+          <th data-sort="Signature">Signature <span class="sort-arrow"></span></th>
+          <th data-sort="Publisher">Publisher <span class="sort-arrow"></span></th>
+          <th>VT</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbodyConns"></tbody>
+    </table>
+    <div class="empty-state" id="emptyConns" style="display: none;">No results</div>
   </div>
-</header>
 
-<main id="main">
-  <noscript><p class="error">This viewer needs JavaScript to read the report. Nothing is sent anywhere.</p></noscript>
-
-  <!-- ===== Landing ===== -->
-  <section id="landing" aria-labelledby="landing-title">
-    <h1 class="landing-title" id="landing-title">Which programs is your PC talking to?</h1>
-    <p class="lead">Load the report created by the checker script. This page sorts the connections by risk, shows the file behind each one and prepares whitelist entries.</p>
-
-    <div id="error" class="error" role="alert" hidden></div>
-
-    <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-describedby="dz-hint">
-      <strong>Drop outbound-connection-report.json here</strong>
-      <span id="dz-hint">or press Enter to choose the file</span>
+  <div class="tab-content" id="tab-services">
+    <div class="summary" id="summarySvcs"></div>
+    <div class="filters">
+      <input type="text" id="filterSvcs" placeholder="🔍 Search (name, display, path, hash, publisher...)">
+      <button onclick="selectAllTab('services')">☑ Select all</button>
+      <button onclick="deselectAllTab('services')">☐ Deselect</button>
+      <button onclick="exportCSV('services')">📥 CSV</button>
     </div>
-    <input type="file" id="file-input" accept=".json,application/json" hidden>
-
-    <div class="landing-actions">
-      <button class="btn primary" id="btn-choose" type="button">Choose file</button>
-      <button class="btn" id="btn-demo" type="button">Try demo data</button>
-    </div>
-
-    <p class="hint" id="browser-hint" hidden></p>
-
-    <details class="paste">
-      <summary>Paste the JSON instead</summary>
-      <textarea id="paste-text" class="mono" spellcheck="false" aria-label="Report JSON" placeholder='{ "schema": "outbound-connection-auditor/1", "connections": [ ... ] }'></textarea>
-      <button class="btn" id="btn-load-paste" type="button">Load pasted JSON</button>
-    </details>
-
-    <ol class="steps">
-      <li>Run <code>run.bat</code> as administrator.</li>
-      <li>The checker saves <code>outbound-connection-report.json</code> next to the script.</li>
-      <li>Drop that file here, or choose it. After the next scan, <strong>Refresh report</strong> reads the same file again without asking.</li>
-    </ol>
-
-    <p class="privacy">The report contains process names, file paths, hashes and remote addresses from your PC. It stays in this browser tab: the page can only contact the address it was loaded from, never sends the report anywhere, and stores nothing except your theme choice. The only outgoing link is the optional VirusTotal lookup, which opens in a new tab when you click it.</p>
-  </section>
-
-  <!-- ===== Report ===== -->
-  <section id="report" hidden>
-    <h1 class="verdict" id="verdict" tabindex="-1"></h1>
-    <p class="meta" id="meta"></p>
-    <p class="notice" id="notice" hidden></p>
-
-    <div class="spectrum" id="spectrum" role="group" aria-label="Share of processes by status"></div>
-    <div class="legend" id="legend" role="group" aria-label="Filter by status"></div>
-
-    <div class="toolbar">
-      <input class="search" id="search" type="search" placeholder="Search process, address, path, publisher" aria-label="Search the report" autocomplete="off">
-      <div class="seg-control" role="group" aria-label="Table view">
-        <button type="button" id="view-connections" aria-pressed="true">Connections</button>
-        <button type="button" id="view-processes" aria-pressed="false">Processes</button>
-      </div>
-      <span class="spacer"></span>
-      <button class="btn primary" id="btn-whitelist" type="button">Build whitelist lines</button>
-      <button class="btn" id="btn-csv" type="button">Export CSV</button>
-    </div>
-    <p class="count" id="count" aria-live="polite"></p>
-    <div class="tablewrap" id="tablewrap"></div>
-  </section>
-</main>
-
-<footer>
-  <p>This is a snapshot of established TCP connections. UDP traffic and very short connections are not included, and a Normal status does not guarantee that a program is safe.</p>
-</footer>
-
-<dialog id="wl" aria-labelledby="wl-title">
-  <h2 id="wl-title">Build whitelist lines</h2>
-  <p>Pick only programs you have verified. Paste the lines into <code>whitelist.txt</code>, next to <code>controllo-connessioni.ps1</code>. Each line trusts one exact file: the path and the SHA256 must both match.</p>
-  <div class="wl-list" id="wl-list"></div>
-  <textarea id="wl-out" class="mono" readonly spellcheck="false" aria-label="Generated whitelist lines"></textarea>
-  <div class="dialog-actions">
-    <button class="btn primary" id="wl-copy" type="button" disabled>Copy lines</button>
-    <button class="btn" id="wl-dl" type="button" disabled>Download lines</button>
-    <button class="btn" id="wl-close" type="button">Close</button>
+    <table id="tableSvcs">
+      <thead>
+        <tr>
+          <th class="cb-cell">W</th>
+          <th class="cb-cell">A</th>
+          <th data-sort="Name">Name <span class="sort-arrow"></span></th>
+          <th data-sort="DisplayName">Display <span class="sort-arrow"></span></th>
+          <th data-sort="State">State <span class="sort-arrow"></span></th>
+          <th data-sort="StartMode">StartMode <span class="sort-arrow"></span></th>
+          <th data-sort="Status">Verdict <span class="sort-arrow"></span></th>
+          <th data-sort="Signature">Signature <span class="sort-arrow"></span></th>
+          <th data-sort="Publisher">Publisher <span class="sort-arrow"></span></th>
+          <th>VT</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbodySvcs"></tbody>
+    </table>
+    <div class="empty-state" id="emptySvcs" style="display: none;">No results</div>
   </div>
-</dialog>
 
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="tab-content" id="tab-tasks">
+    <div class="summary" id="summaryTasks"></div>
+    <div class="filters">
+      <input type="text" id="filterTasks" placeholder="🔍 Search (name, path, hash, publisher...)">
+      <button onclick="selectAllTab('tasks')">☑ Select all</button>
+      <button onclick="deselectAllTab('tasks')">☐ Deselect</button>
+      <button onclick="exportCSV('tasks')">📥 CSV</button>
+    </div>
+    <table id="tableTasks">
+      <thead>
+        <tr>
+          <th class="cb-cell">W</th>
+          <th class="cb-cell">A</th>
+          <th data-sort="Name">Name <span class="sort-arrow"></span></th>
+          <th data-sort="DisplayName">Path <span class="sort-arrow"></span></th>
+          <th data-sort="State">State <span class="sort-arrow"></span></th>
+          <th data-sort="Status">Verdict <span class="sort-arrow"></span></th>
+          <th data-sort="Signature">Signature <span class="sort-arrow"></span></th>
+          <th data-sort="Publisher">Publisher <span class="sort-arrow"></span></th>
+          <th>Search</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbodyTasks"></tbody>
+    </table>
+    <div class="empty-state" id="emptyTasks" style="display: none;">No results</div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
 
 <script>
-(() => {
-'use strict';
+// ============================================================
+// GLOBAL STATE
+// ============================================================
 
-const $ = (sel, root = document) => root.querySelector(sel);
+let REPORT = null;
+let globalFilter = 'review';
 
-/* Build DOM nodes without innerHTML: report data comes from the machine
-   being audited and must never be interpreted as markup. */
-function h(tag, props, ...kids) {
-  const el = document.createElement(tag);
-  if (props) {
-    for (const [k, v] of Object.entries(props)) {
-      if (v === false || v === null || v === undefined) continue;
-      if (k === 'class') el.className = v;
-      else if (k === 'text') el.textContent = v;
-      else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
-      else el.setAttribute(k, v === true ? '' : String(v));
-    }
-  }
-  for (const kid of kids.flat()) {
-    if (kid === null || kid === undefined || kid === false) continue;
-    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
-  }
-  return el;
-}
-
-/* ---------- status categories ---------- */
-const CATS = [
-  { id: 'suspicious', label: 'Suspicious', rank: 0 },
-  { id: 'check', label: 'To check', rank: 1 },
-  { id: 'unverifiable', label: 'Unverifiable', rank: 2 },
-  { id: 'whitelist', label: 'Whitelist', rank: 3 },
-  { id: 'normal', label: 'Normal', rank: 4 },
-];
-const CAT = Object.fromEntries(CATS.map(c => [c.id, c]));
-
-function categoryOf(status) {
-  const s = String(status).trim().toUpperCase();
-  if (s.startsWith('SUSPICIOUS')) return 'suspicious';
-  if (s.startsWith('TO CHECK')) return 'check';
-  if (s.startsWith('UNVERIFIABLE')) return 'unverifiable';
-  if (s === 'WHITELIST') return 'whitelist';
-  return 'normal';
-}
-function reasonOf(status) {
-  const m = /\(([^)]*)\)/.exec(status);
-  return m ? m[1] : '';
-}
-const isHex64 = s => /^[A-Fa-f0-9]{64}$/.test(s);
-
-/* ---------- state ---------- */
 const state = {
-  procs: [], conns: [], meta: {}, source: '', isDemo: false,
-  origin: 'demo',      // demo | paste | upload | handle | http
-  handle: null,        // file handle (Chrome/Edge) so the same file can be re-read
-  modified: 0,         // lastModified of that file
-
-  filter: 'all', query: '', view: 'connections',
-  sort: { key: 'severity', dir: 1 },
-  open: new Set(), animate: false,
+  connections: { data: [], sort: { key: 'PID', dir: 'asc' }, filter: '', statusFilter: null },
+  services:    { data: [], sort: { key: 'Name', dir: 'asc' }, filter: '', statusFilter: null },
+  tasks:       { data: [], sort: { key: 'Name', dir: 'asc' }, filter: '', statusFilter: null }
 };
 
-/* ---------- report parsing ---------- */
-function normalize(raw) {
-  let rows;
-  let meta = {};
-  if (Array.isArray(raw)) rows = raw;
-  else if (raw && typeof raw === 'object' && Array.isArray(raw.connections)) { rows = raw.connections; meta = raw; }
-  else if (raw && typeof raw === 'object' && 'PID' in raw) rows = [raw];
-  else throw new Error('no "connections" list was found');
+const selection = {};
 
-  const conns = rows.map((r, i) => {
-    if (!r || typeof r !== 'object') throw new Error('row ' + (i + 1) + ' is not an object');
-    const s = k => (r[k] === null || r[k] === undefined) ? '' : String(r[k]);
-    return {
-      idx: i,
-      pid: Number(r.PID) || 0,
-      process: s('Process') || 'N/A',
-      remoteIp: s('Remote_IP'),
-      remotePort: Number(r.Remote_Port) || 0,
-      localPort: Number(r.Local_Port) || 0,
-      status: s('Status') || 'Normal',
-      signature: s('Signature') || 'N/A',
-      publisher: s('Publisher') || 'N/A',
-      company: s('Company') || 'N/A',
-      version: s('Version') || 'N/A',
-      hash: s('Hash') || 'N/A',
-      note: s('Note'),
-      path: s('Path') || 'N/A',
-    };
-  });
+function selKey(tab, id) { return tab + '|' + id; }
 
-  const byPid = new Map();
-  for (const c of conns) {
-    let p = byPid.get(c.pid);
-    if (!p) {
-      p = {
-        pid: c.pid, process: c.process, status: c.status, cat: CAT[categoryOf(c.status)],
-        signature: c.signature, publisher: c.publisher, company: c.company, version: c.version,
-        hash: c.hash, note: c.note, path: c.path, conns: [],
+function getRowId(tab, r) {
+  if (tab === 'connections') return String(r.PID);
+  const safeName = String(r.Name || '').replace(/[\\'"<>|]/g, '_');
+  const safeDisplay = String(r.DisplayName || '').replace(/[\\'"<>|]/g, '_');
+  return r.Type + '_' + safeName + '_' + safeDisplay;
+}
+
+function getSel(tab, id) {
+  const k = selKey(tab, id);
+  if (!selection[k]) selection[k] = { w: false, a: 'none' };
+  return selection[k];
+}
+
+// ============================================================
+// FILE LOADING
+// ============================================================
+
+const fileInput = document.getElementById('fileInput');
+const uploadBox = document.getElementById('uploadBox');
+
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => loadReport(ev.target.result);
+  reader.readAsText(file, 'UTF-8');
+});
+
+uploadBox.addEventListener('dragover', e => {
+  e.preventDefault();
+  uploadBox.style.borderColor = 'var(--accent)';
+});
+uploadBox.addEventListener('dragleave', () => {
+  uploadBox.style.borderColor = 'var(--border)';
+});
+uploadBox.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadBox.style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => loadReport(ev.target.result);
+  reader.readAsText(file, 'UTF-8');
+});
+
+// ============================================================
+// RESET UPLOAD
+// ============================================================
+
+function resetUpload() {
+  window.location.reload();
+}
+
+// ============================================================
+// LOAD REPORT
+// ============================================================
+
+function loadReport(jsonText) {
+  try {
+    const data = JSON.parse(jsonText);
+
+    if (data.schema === 'controllo-completo/1') {
+      REPORT = data;
+    } else if (data.schema === 'outbound-connection-auditor/1') {
+      REPORT = {
+        schema: 'controllo-completo/1',
+        generated: data.generated,
+        isAdmin: data.isAdmin,
+        totalConnections: data.totalConnections,
+        totalServices: 0,
+        totalTasks: 0,
+        connections: data.connections || [],
+        services: [],
+        tasks: []
       };
-      byPid.set(c.pid, p);
-    }
-    p.conns.push(c);
-    c.proc = p;
-  }
-  const procs = [...byPid.values()];
-  for (const p of procs) {
-    p.searchText = [p.process, p.pid, p.status, p.signature, p.publisher, p.company, p.path, p.hash,
-      ...p.conns.map(c => c.remoteIp + ':' + c.remotePort)].join(' ').toLowerCase();
-  }
-  for (const c of conns) {
-    c.searchText = [c.process, c.pid, c.remoteIp + ':' + c.remotePort, c.localPort, c.status, c.signature,
-      c.publisher, c.company, c.path, c.hash].join(' ').toLowerCase();
-  }
-  return { conns, procs, meta };
-}
-
-/* ---------- loading ---------- */
-function showError(msg) {
-  const box = $('#error');
-  box.textContent = msg;
-  box.hidden = false;
-}
-function clearError() { $('#error').hidden = true; }
-
-/* opts: { isDemo, origin, handle, modified, keepView }
-   keepView is used by "Refresh report": filters, search, view and sort stay as they are. */
-function loadText(text, source, opts = {}) {
-  let data;
-  try {
-    const raw = JSON.parse(String(text).replace(/^\uFEFF/, ''));
-    data = normalize(raw);
-  } catch (err) {
-    if (opts.keepView) {
-      toast('Refresh failed: the file is not a readable report yet. Try again in a moment.');
     } else {
-      showError('This is not a report the viewer can read (' + err.message + '). Run the checker again and load outbound-connection-report.json.');
+      alert('Unknown report format: ' + (data.schema || 'unknown'));
+      return;
     }
-    return false;
-  }
-  clearError();
-  state.conns = data.conns;
-  state.procs = data.procs;
-  state.meta = data.meta;
-  state.source = source;
-  state.isDemo = !!opts.isDemo;
-  state.origin = opts.origin || 'upload';
-  state.handle = opts.handle || null;
-  state.modified = opts.modified || 0;
-  state.open = new Set();
 
-  if (opts.keepView) {
-    if (state.filter !== 'all' && !state.procs.some(p => p.cat.id === state.filter)) state.filter = 'all';
-  } else {
-    state.filter = 'all';
-    state.query = '';
-    state.view = 'connections';
-    state.sort = { key: 'severity', dir: 1 };
-    $('#search').value = '';
-  }
-  state.animate = !opts.keepView;
+    state.connections.data = (REPORT.connections || []).map(normalizeConn);
+    state.services.data    = (REPORT.services    || []).map(normalizeSvc);
+    state.tasks.data       = (REPORT.tasks       || []).map(normalizeTask);
 
-  $('#landing').hidden = true;
-  $('#report').hidden = false;
-  $('#btn-new').hidden = false;
-  renderReport();
-  state.animate = false;
-  updateRefreshButton();
-  if (!opts.keepView) {
-    $('#verdict').focus();
-    window.scrollTo(0, 0);
-  }
-  return true;
-}
+    for (const k in selection) delete selection[k];
+    state.connections.statusFilter = null;
+    state.services.statusFilter    = null;
+    state.tasks.statusFilter       = null;
 
-async function readFile(file) {
-  if (file.size > 25 * 1024 * 1024) {
-    showError('This file is larger than 25 MB, so it is probably not a report.');
-    return;
-  }
-  try {
-    loadText(await file.text(), file.name, { origin: 'upload' });
+    document.getElementById('headerInfo').style.display = 'flex';
+    document.getElementById('globalControls').style.display = 'flex';
+    document.getElementById('tabs').style.display = 'flex';
+    document.getElementById('uploadBox').style.display = 'none';
+
+    updateHeaderInfo();
+    renderAll();
   } catch (err) {
-    showError('The file could not be read: ' + err.message);
+    alert('JSON parsing error: ' + err.message);
   }
 }
 
-/* Chrome and Edge give the page a file handle: the same file can be read again later. */
-async function readHandle(handle, refresh) {
-  const file = await handle.getFile();
-  if (file.size > 25 * 1024 * 1024) {
-    showError('This file is larger than 25 MB, so it is probably not a report.');
-    return;
-  }
-  if (refresh && file.lastModified === state.modified) {
-    toast('Already showing the latest report');
-    return;
-  }
-  const ok = loadText(await file.text(), file.name, {
-    origin: 'handle', handle, modified: file.lastModified, keepView: !!refresh,
-  });
-  if (ok && refresh) toast('Report refreshed');
+// ============================================================
+// HEADER INFO
+// ============================================================
+
+function updateHeaderInfo() {
+  document.getElementById('infoGenerated').textContent = REPORT.generated || '-';
+  document.getElementById('infoAdmin').textContent = REPORT.isAdmin ? 'Yes' : 'No';
+
+  const wlConns = state.connections.data.filter(x => x.Status === 'Whitelist').length;
+  const wlSvcs  = state.services.data.filter(x => x.Status === 'Whitelist').length;
+  const wlTasks = state.tasks.data.filter(x => x.Status === 'Whitelist').length;
+
+  document.getElementById('infoConns').textContent = REPORT.totalConnections || 0;
+  document.getElementById('infoSvcs').textContent  = REPORT.totalServices || 0;
+  document.getElementById('infoTasks').textContent = REPORT.totalTasks || 0;
+
+  document.getElementById('infoConnsWl').innerHTML =
+    wlConns > 0 ? ` <span style="color: var(--gray); font-weight: normal;">(${wlConns} whitelist)</span>` : '';
+  document.getElementById('infoSvcsWl').innerHTML =
+    wlSvcs > 0 ? ` <span style="color: var(--gray); font-weight: normal;">(${wlSvcs} whitelist)</span>` : '';
+  document.getElementById('infoTasksWl').innerHTML =
+    wlTasks > 0 ? ` <span style="color: var(--gray); font-weight: normal;">(${wlTasks} whitelist)</span>` : '';
 }
 
-async function chooseFile() {
-  if (typeof window.showOpenFilePicker === 'function') {
-    try {
-      const [handle] = await window.showOpenFilePicker({
-        id: 'outbound-report',            // the browser reopens the folder you used last time
-        multiple: false,
-        types: [{ description: 'JSON report', accept: { 'application/json': ['.json'] } }],
-      });
-      await readHandle(handle, false);
-    } catch (err) {
-      if (err && err.name !== 'AbortError') showError('The file could not be opened: ' + err.message);
-    }
-    return;
-  }
-  $('#file-input').click();
-}
+// ============================================================
+// NORMALIZATION
+// ============================================================
 
-/* When the page is served from localhost (for example with a small local web server started
-   in the report folder), the report is simply the file next to index.html. */
-const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
-const servedLocally = () => /^https?:$/.test(location.protocol) && LOCAL_HOSTS.includes(location.hostname);
-
-async function fetchNeighbour(refresh) {
-  const res = await fetch('./outbound-connection-report.json', { cache: 'no-store' });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  const ok = loadText(await res.text(), 'outbound-connection-report.json', { origin: 'http', keepView: !!refresh });
-  if (ok && refresh) toast('Report refreshed');
-}
-
-async function refreshReport() {
-  try {
-    if (state.origin === 'handle' && state.handle) {
-      await readHandle(state.handle, true);
-    } else if (state.origin === 'http') {
-      await fetchNeighbour(true);
-    }
-  } catch (err) {
-    toast('Refresh failed: the file could not be read again. It may have been moved or deleted.');
-  }
-}
-
-function updateRefreshButton() {
-  $('#btn-refresh').hidden = !(state.origin === 'handle' || state.origin === 'http') || state.isDemo;
-}
-
-function backToLanding() {
-  $('#report').hidden = true;
-  $('#landing').hidden = false;
-  $('#btn-new').hidden = true;
-  $('#btn-refresh').hidden = true;
-  clearError();
-  window.scrollTo(0, 0);
-}
-
-/* ---------- demo data ---------- */
-function fakeHash(seed) {
-  let x = 2166136261 >>> 0;
-  let out = '';
-  for (let i = 0; out.length < 64; i++) {
-    const s = seed + ':' + i;
-    for (let j = 0; j < s.length; j++) { x ^= s.charCodeAt(j); x = Math.imul(x, 16777619) >>> 0; }
-    out += x.toString(16).padStart(8, '0');
-  }
-  return out.slice(0, 64).toUpperCase();
-}
-
-function demoReport() {
-  const R = (pid, process, ip, rp, lp, status, sig, pub, comp, ver, path, note) => ({
-    PID: pid, Process: process, Remote_IP: ip, Remote_Port: rp, Local_Port: lp, Status: status,
-    Signature: sig, Publisher: pub, Company: comp, Version: ver,
-    Hash: path === 'N/A' ? 'N/A' : fakeHash(path), Note: note || '', Path: path,
-  });
-  const chrome = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-  const zoom = 'C:\\Users\\demo\\AppData\\Roaming\\Zoom\\bin\\Zoom.exe';
-  const dl = 'C:\\Users\\demo\\Downloads\\svc_updater.exe';
+function normalizeConn(c) {
   return {
-    schema: 'outbound-connection-auditor/1',
-    generated: new Date().toISOString(),
-    isAdmin: true,
-    connections: [
-      R(4992, 'chrome', '203.0.113.10', 5228, 46331, 'Normal', 'Valid', 'Google LLC', 'Google LLC', '126.0.6478.127', chrome),
-      R(4992, 'chrome', '203.0.113.25', 443, 41891, 'Normal', 'Valid', 'Google LLC', 'Google LLC', '126.0.6478.127', chrome),
-      R(4992, 'chrome', '198.51.100.44', 443, 41902, 'Normal', 'Valid', 'Google LLC', 'Google LLC', '126.0.6478.127', chrome),
-      R(6120, 'msedge', '203.0.113.61', 443, 50122, 'Normal', 'Valid', 'Microsoft Corporation', 'Microsoft Corporation', '126.0.2592.87', 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'),
-      R(7310, 'Discord', '198.51.100.90', 443, 50231, 'Normal', 'Valid', 'Discord Inc.', 'Discord Inc.', '1.0.9152', 'C:\\Users\\demo\\AppData\\Local\\Discord\\app-1.0.9152\\Discord.exe'),
-      R(1196, 'svchost', '203.0.113.130', 443, 49810, 'Normal', 'Valid', 'Microsoft Windows', 'Microsoft Corporation', '10.0.22631.3737', 'C:\\Windows\\System32\\svchost.exe'),
-      R(4316, 'MpDefenderCoreService', '203.0.113.80', 443, 22927, 'Normal (protected process)', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'),
-      R(9284, 'falso_positivo_test', '198.51.100.7', 80, 1984, 'SUSPICIOUS (path/signature)', 'Unsigned', 'N/A', 'N/A', '0.0.0.0', 'D:\\tools\\outbound-connection-auditor\\fake_process\\temp\\falso_positivo_test.exe'),
-      R(8840, 'svc_updater', '203.0.113.200', 8443, 51044, 'SUSPICIOUS (path/signature)', 'Unsigned', 'N/A', 'N/A', '1.0.0.0', dl),
-      R(8840, 'svc_updater', '203.0.113.200', 9001, 51077, 'SUSPICIOUS (path/signature)', 'Unsigned', 'N/A', 'N/A', '1.0.0.0', dl),
-      R(5512, 'Zoom', '198.51.100.120', 443, 50560, 'TO CHECK (path)', 'Valid', 'Zoom Video Communications, Inc.', 'Zoom Video Communications, Inc.', '6.1.5.1234', zoom),
-      R(3301, 'oldsync', '203.0.113.150', 443, 50711, 'TO CHECK (signature)', 'Unsigned', 'N/A', 'OldSync Labs', '2.1.0', 'C:\\Program Files\\OldSync\\oldsync.exe', 'Path is in the whitelist but the file has changed (different hash)'),
-      R(2748, 'backupd', '198.51.100.201', 443, 50891, 'UNVERIFIABLE', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'),
-      R(6650, 'portable_notes', '198.51.100.77', 443, 50944, 'Whitelist', 'Unsigned', 'N/A', 'N/A', '3.4.1', 'D:\\Apps\\PortableNotes\\portable_notes.exe'),
-    ],
+    Type:        c.Type || 'Connection',
+    PID:         c.PID,
+    Name:        c.Process || c.Name || 'N/A',
+    Remote_IP:   c.Remote_IP || 'N/A',
+    Remote_Port: c.Remote_Port || 'N/A',
+    Local_Port:  c.Local_Port  || 'N/A',
+    State:       c.State || 'Established',
+    StartMode:   c.StartMode || 'N/A',
+    Status:      c.Status || 'N/A',
+    Signature:   c.Signature || 'N/A',
+    Publisher:   c.Publisher || 'N/A',
+    Company:     c.Company || 'N/A',
+    Version:     c.Version || 'N/A',
+    Hash:        c.Hash || 'N/A',
+    Note:        c.Note || '',
+    Path:        c.Path || 'N/A',
+    RawCommand:  c.RawCommand || 'N/A'
   };
 }
 
-/* ---------- summary ---------- */
-function counts() {
-  const proc = {}, conn = {};
-  for (const c of CATS) { proc[c.id] = 0; conn[c.id] = 0; }
-  for (const p of state.procs) { proc[p.cat.id]++; conn[p.cat.id] += p.conns.length; }
-  return { proc, conn };
+function normalizeSvc(s) {
+  return {
+    Type:        'Service',
+    Name:        s.Name || 'N/A',
+    DisplayName: s.DisplayName || 'N/A',
+    State:       s.State || 'N/A',
+    StartMode:   s.StartMode || 'N/A',
+    Status:      s.Status || 'N/A',
+    Signature:   s.Signature || 'N/A',
+    Publisher:   s.Publisher || 'N/A',
+    Company:     s.Company || 'N/A',
+    Version:     s.Version || 'N/A',
+    Hash:        s.Hash || 'N/A',
+    Path:        s.Path || 'N/A',
+    RawCommand:  s.RawCommand || 'N/A'
+  };
 }
 
-function renderSummary() {
-  const { proc, conn } = counts();
-  const total = state.procs.length;
-  const s = proc.suspicious;
-  const k = proc.check + proc.unverifiable;
+function normalizeTask(t) {
+  return {
+    Type:        'Task',
+    Name:        t.Name || 'N/A',
+    DisplayName: t.DisplayName || 'N/A',
+    State:       t.State || 'N/A',
+    StartMode:   t.StartMode || 'N/A',
+    Status:      t.Status || 'N/A',
+    Signature:   t.Signature || 'N/A',
+    Publisher:   t.Publisher || 'N/A',
+    Company:     t.Company || 'N/A',
+    Version:     t.Version || 'N/A',
+    Hash:        t.Hash || 'N/A',
+    Path:        t.Path || 'N/A',
+    RawCommand:  t.RawCommand || 'N/A'
+  };
+}
 
-  let text, color;
-  if (total === 0) { text = 'No external connections were open during the scan.'; color = 'var(--muted)'; }
-  else if (s > 0) { text = s + (s === 1 ? ' suspicious process is' : ' suspicious processes are') + ' connected to the internet.'; color = 'var(--suspicious)'; }
-  else if (k > 0) { text = 'No suspicious processes, but ' + k + (k === 1 ? ' needs' : ' need') + ' a closer look.'; color = 'var(--check)'; }
-  else { text = 'Everything that is connected looks normal.'; color = 'var(--normal)'; }
-  const v = $('#verdict');
-  v.textContent = text;
-  v.style.setProperty('--verdict', color);
+// ============================================================
+// HELPERS
+// ============================================================
 
-  const meta = $('#meta');
-  meta.replaceChildren();
-  const when = state.meta.generated ? new Date(state.meta.generated) : null;
-  if (when && !isNaN(when)) meta.append(h('span', null, 'Scanned ' + when.toLocaleString()));
-  meta.append(h('span', null, state.conns.length + (state.conns.length === 1 ? ' connection' : ' connections') + ' from ' + total + (total === 1 ? ' process' : ' processes')));
-  if (typeof state.meta.isAdmin === 'boolean') meta.append(h('span', null, 'Administrator rights: ' + (state.meta.isAdmin ? 'yes' : 'no')));
-  meta.append(h('span', null, state.isDemo ? 'Demo data' : 'File: ' + state.source));
+function statusClass(status) {
+  if (!status) return '';
+  if (status.startsWith('Normal (system task)')) return 'status-NormalSystem';
+  if (status.startsWith('Normal (disabled)'))    return 'status-NormalDisabled';
+  if (status.startsWith('Normal'))               return 'status-Normal';
+  if (status === 'Whitelist')                    return 'status-Whitelist';
+  if (status.startsWith('TO CHECK'))             return 'status-TCHECK';
+  if (status.startsWith('UNVERIFIABLE'))         return 'status-UNVERIFIABLE';
+  if (status.startsWith('SUSPICIOUS'))           return 'status-SUSPICIOUS';
+  return '';
+}
 
-  const notice = $('#notice');
-  if (state.meta.isAdmin === false) {
-    notice.textContent = 'This report was created without administrator rights, so some file paths could not be read. Run run.bat as administrator for a complete report.';
-    notice.hidden = false;
-  } else if (state.isDemo) {
-    notice.textContent = 'Demo data: every name, address and hash below is made up. Addresses use ranges reserved for documentation.';
-    notice.hidden = false;
-  } else {
-    notice.hidden = true;
+function isToReview(status) {
+  return status &&
+    (status.startsWith('SUSPICIOUS') ||
+     status.startsWith('TO CHECK') ||
+     status.startsWith('UNVERIFIABLE'));
+}
+
+function statusCategory(status) {
+  if (!status) return null;
+  if (status === 'Whitelist')                 return 'whitelist';
+  if (status.startsWith('Normal'))            return 'normal';
+  if (status.startsWith('TO CHECK'))          return 'tocheck';
+  if (status.startsWith('UNVERIFIABLE'))      return 'unverifiable';
+  if (status.startsWith('SUSPICIOUS'))        return 'suspicious';
+  return null;
+}
+
+function vtLink(r) {
+  if (!r.Status || !isToReview(r.Status)) return '';
+
+  const hasHash = r.Hash && r.Hash !== 'N/A' && r.Hash.length >= 32;
+
+  if (hasHash) {
+    return `<a class="vt-link" href="https://www.virustotal.com/gui/file/${encodeURIComponent(r.Hash)}" target="_blank" rel="noopener" title="Search hash on VirusTotal">🦠 VT</a>`;
   }
 
-  // status spectrum: one segment per status, width = number of processes
-  const bar = $('#spectrum');
-  bar.replaceChildren();
-  bar.classList.toggle('enter', state.animate);
-  if (total === 0) {
-    bar.append(h('div', { class: 'seg-empty' }));
-  } else {
-    CATS.filter(c => proc[c.id] > 0).forEach((c, i) => {
-      bar.append(h('button', {
-        class: 'seg' + (state.filter !== 'all' && state.filter !== c.id ? ' dim' : ''),
-        type: 'button', tabindex: '-1', 'aria-hidden': 'true',
-        title: c.label + ': ' + proc[c.id] + (proc[c.id] === 1 ? ' process' : ' processes'),
-        style: '--n:' + proc[c.id] + ';--i:' + i + ';--c:var(--' + c.id + ')',
-        onclick: () => toggleFilter(c.id),
-      }));
+  if (r.Type === 'Task') {
+    return `<a class="vt-link google" href="https://www.google.com/search?q=${encodeURIComponent(r.Name + ' scheduled task')}" target="_blank" rel="noopener" title="Search on Google">🔎 G</a>`;
+  }
+
+  return `<a class="vt-link dim" href="https://www.virustotal.com/gui/search/${encodeURIComponent(r.Name)}" target="_blank" rel="noopener" title="Search by name on VirusTotal">🔎 VT</a>`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function esc(s) {
+  if (s === undefined || s === null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+
+function renderAll() {
+  renderTab('connections');
+  renderTab('services');
+  renderTab('tasks');
+  updateBadges();
+}
+
+function updateBadges() {
+  const c = state.connections.data.filter(x => isToReview(x.Status)).length;
+  const s = state.services.data.filter(x => isToReview(x.Status)).length;
+  const t = state.tasks.data.filter(x => isToReview(x.Status)).length;
+
+  setBadge('badgeConns', c);
+  setBadge('badgeSvcs', s);
+  setBadge('badgeTasks', t);
+}
+
+function setBadge(id, count) {
+  const el = document.getElementById(id);
+  el.textContent = count;
+  el.className = 'badge' + (count > 0 ? ' red' : '');
+}
+
+function getVisibleRows(tab) {
+  const cfg = state[tab];
+  let rows = cfg.data.slice();
+
+  if (globalFilter === 'review') {
+    rows = rows.filter(r => isToReview(r.Status));
+  }
+
+  if (cfg.statusFilter) {
+    rows = rows.filter(r => statusCategory(r.Status) === cfg.statusFilter);
+  }
+
+  if (cfg.filter) {
+    const q = cfg.filter.toLowerCase();
+    rows = rows.filter(r => {
+      const text = Object.values(r).join(' ').toLowerCase();
+      return text.includes(q);
     });
   }
 
-  const legend = $('#legend');
-  legend.replaceChildren();
-  legend.append(h('button', {
-    class: 'legend-item', type: 'button', 'aria-pressed': String(state.filter === 'all'),
-    onclick: () => setFilter('all'),
-  }, h('span', { class: 'sw' }), 'All ', h('span', { class: 'n' }, total)));
-  for (const c of CATS) {
-    if (proc[c.id] === 0) continue;
-    legend.append(h('button', {
-      class: 'legend-item', type: 'button', 'aria-pressed': String(state.filter === c.id),
-      style: '--c:var(--' + c.id + ')',
-      title: proc[c.id] + (proc[c.id] === 1 ? ' process, ' : ' processes, ') + conn[c.id] + (conn[c.id] === 1 ? ' connection' : ' connections'),
-      onclick: () => toggleFilter(c.id),
-    }, h('span', { class: 'sw' }), c.label + ' ', h('span', { class: 'n' }, proc[c.id])));
-  }
-}
-
-function setFilter(id) {
-  state.filter = id;
-  renderSummary();
-  renderTable();
-}
-function toggleFilter(id) { setFilter(state.filter === id ? 'all' : id); }
-
-/* ---------- table ---------- */
-const COLS = {
-  connections: [
-    { key: 'severity', label: 'Status' },
-    { key: 'process', label: 'Process' },
-    { key: 'pid', label: 'PID', num: true },
-    { key: 'remote', label: 'Remote address' },
-    { key: 'local', label: 'Local port', num: true },
-    { key: 'signature', label: 'Signature' },
-  ],
-  processes: [
-    { key: 'severity', label: 'Status' },
-    { key: 'process', label: 'Process' },
-    { key: 'pid', label: 'PID', num: true },
-    { key: 'count', label: 'Connections', num: true },
-    { key: 'signature', label: 'Signature' },
-    { key: 'publisher', label: 'Publisher' },
-  ],
-};
-const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
-
-function procOf(item) { return state.view === 'connections' ? item.proc : item; }
-
-function sortValue(item, key) {
-  const p = procOf(item);
-  switch (key) {
-    case 'severity': return p.cat.rank;
-    case 'process': return p.process;
-    case 'pid': return p.pid;
-    case 'remote': return item.remoteIp + ':' + String(item.remotePort).padStart(5, '0');
-    case 'local': return item.localPort;
-    case 'count': return item.conns.length;
-    case 'signature': return p.signature;
-    case 'publisher': return p.publisher;
-    default: return '';
-  }
-}
-
-function visibleItems() {
-  const q = state.query;
-  const list = (state.view === 'connections' ? state.conns : state.procs)
-    .filter(it => (state.filter === 'all' || procOf(it).cat.id === state.filter) && (!q || it.searchText.includes(q)));
-  const { key, dir } = state.sort;
-  list.sort((a, b) => {
-    const va = sortValue(a, key), vb = sortValue(b, key);
-    let r = (typeof va === 'number' && typeof vb === 'number') ? va - vb : collator.compare(String(va), String(vb));
-    if (r === 0) {
-      const pa = procOf(a), pb = procOf(b);
-      r = (pa.cat.rank - pb.cat.rank) || collator.compare(pa.process, pb.process) || (pa.pid - pb.pid);
-    }
-    return r * dir;
+  rows.sort((a, b) => {
+    const av = a[cfg.sort.key] ?? '';
+    const bv = b[cfg.sort.key] ?? '';
+    const cmp = String(av).localeCompare(String(bv), undefined, { numeric: true });
+    return cfg.sort.dir === 'asc' ? cmp : -cmp;
   });
-  return list;
+
+  return rows;
 }
 
-function whitelistLine(p) {
-  const d = new Date(), z = n => String(n).padStart(2, '0');
-  const stamp = d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes());
-  return [p.hash.toUpperCase(), p.path, p.process, stamp].join('|');
-}
-const canWhitelist = p => (p.cat.id === 'suspicious' || p.cat.id === 'check') && isHex64(p.hash) && p.path !== 'N/A';
+function renderTab(tab) {
+  const suffix = tab === 'connections' ? 'Conns' : tab === 'services' ? 'Svcs' : 'Tasks';
+  const tbody = document.getElementById('tbody' + suffix);
+  const empty = document.getElementById('empty' + suffix);
 
-function badge(p) {
-  const reason = reasonOf(p.status);
-  return h('span', null,
-    h('span', { class: 'badge ' + 'cat-' + p.cat.id }, p.cat.label),
-    reason ? h('span', { class: 'reason' }, reason) : null);
-}
+  const rows = getVisibleRows(tab);
 
-function buildDetail(p, colspan) {
-  const field = (label, value, cls) => [h('dt', null, label), h('dd', { class: cls || 'mono' }, value)];
-  const fields = h('dl', { class: 'fields' },
-    field('Status', p.status, ''),
-    p.note ? field('Note', p.note, 'note') : null,
-    field('Path', p.path),
-    field('SHA256', p.hash),
-    field('Signature', p.signature, ''),
-    field('Publisher', p.publisher, ''),
-    field('Company', p.company, ''),
-    field('Version', p.version));
+  renderSummary(tab);
 
-  const list = h('ul', { class: 'connlist mono' },
-    p.conns.map(c => h('li', null, c.remoteIp + ':' + c.remotePort + '  (local port ' + c.localPort + ')')));
+  if (rows.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
 
-  const actions = h('div', { class: 'actions' },
-    p.path !== 'N/A' ? h('button', { class: 'btn', type: 'button', onclick: () => copyText(p.path, 'Path copied') }, 'Copy path') : null,
-    p.hash !== 'N/A' ? h('button', { class: 'btn', type: 'button', onclick: () => copyText(p.hash, 'SHA256 copied') }, 'Copy SHA256') : null,
-    (isHex64(p.hash) && !state.isDemo)
-      ? h('a', {
-          class: 'btn', href: 'https://www.virustotal.com/gui/file/' + p.hash.toLowerCase(),
-          target: '_blank', rel: 'noopener noreferrer',
-          title: 'Opens virustotal.com in a new tab. Only the hash is in the link.',
-        }, 'Look up on VirusTotal')
-      : null,
-    canWhitelist(p) ? h('button', { class: 'btn', type: 'button', onclick: () => copyText(whitelistLine(p), 'Whitelist line copied') }, 'Copy whitelist line') : null);
-
-  return h('tr', { class: 'detail' },
-    h('td', { colspan: String(colspan) },
-      fields,
-      h('p', { class: 'detail-title' }, p.conns.length === 1 ? 'Connection' : 'Connections (' + p.conns.length + ')'),
-      list,
-      actions));
+  tbody.innerHTML = rows.map(r => renderRow(tab, r)).join('');
 }
 
-function makeRow(item, key, cols) {
-  const p = procOf(item);
-  const conn = state.view === 'connections';
-  const tr = h('tr', { class: 'row cat-' + p.cat.id });
-  let detail = null;
+function renderRow(tab, r) {
+  const id = 'row_' + Math.random().toString(36).slice(2, 10);
+  const rid = getRowId(tab, r);
+  const sel = getSel(tab, rid);
+  const wChecked = sel.w ? 'checked' : '';
 
-  const setOpen = open => {
-    if (open) {
-      state.open.add(key);
-      if (!detail) detail = buildDetail(p, cols.length + 1);
-      tr.after(detail);
-    } else {
-      state.open.delete(key);
-      if (detail) detail.remove();
-    }
-    btn.setAttribute('aria-expanded', String(open));
-    tr.classList.toggle('open', open);
+  let aSelectHtml = '<span style="color: var(--text-dim); font-size: 0.8em;">—</span>';
+  if (isToReview(r.Status)) {
+    const canTerminate = (r.Type === 'Connection');
+    const canDisable = (r.Type === 'Service') || (r.Type === 'Task');
+    aSelectHtml = `
+      <select class="action-select" onchange="setAction('${tab}','${rid}', this.value)">
+        <option value="none" ${sel.a === 'none' ? 'selected' : ''}>—</option>
+        ${canTerminate ? `<option value="terminate" ${sel.a === 'terminate' ? 'selected' : ''}>Terminate</option>` : ''}
+        ${canDisable ? `<option value="disable" ${sel.a === 'disable' ? 'selected' : ''}>Disable</option>` : ''}
+      </select>
+    `;
+  }
+
+  const wCheckbox = isToReview(r.Status)
+    ? `<input type="checkbox" ${wChecked} onchange="setWhitelist('${tab}','${rid}', this.checked)">`
+    : '';
+
+  if (tab === 'connections') {
+    return `
+      <tr id="${id}">
+        <td class="cb-cell">${wCheckbox}</td>
+        <td class="cb-cell">${aSelectHtml}</td>
+        <td>${esc(r.PID)}</td>
+        <td>${esc(r.Name)}</td>
+        <td><code>${esc(r.Remote_IP)}</code></td>
+        <td>${esc(r.Remote_Port)}</td>
+        <td class="${statusClass(r.Status)}">${esc(r.Status)}</td>
+        <td>${esc(r.Signature)}</td>
+        <td>${esc(r.Publisher)}</td>
+        <td>${vtLink(r)}</td>
+        <td><button class="expand-btn" onclick="toggleDetail('${id}')">+</button></td>
+      </tr>
+      <tr class="detail-row" id="${id}_d">
+        <td colspan="11">
+          ${detailHTML(r, ['PID','Name','Remote_IP','Remote_Port','Local_Port','State','Status','Signature','Publisher','Company','Version','Hash','Note','Path'])}
+        </td>
+      </tr>
+    `;
+  }
+
+  if (tab === 'services') {
+    return `
+      <tr id="${id}">
+        <td class="cb-cell">${wCheckbox}</td>
+        <td class="cb-cell">${aSelectHtml}</td>
+        <td>${esc(r.Name)}</td>
+        <td>${esc(r.DisplayName)}</td>
+        <td>${esc(r.State)}</td>
+        <td>${esc(r.StartMode)}</td>
+        <td class="${statusClass(r.Status)}">${esc(r.Status)}</td>
+        <td>${esc(r.Signature)}</td>
+        <td>${esc(r.Publisher)}</td>
+        <td>${vtLink(r)}</td>
+        <td><button class="expand-btn" onclick="toggleDetail('${id}')">+</button></td>
+      </tr>
+      <tr class="detail-row" id="${id}_d">
+        <td colspan="11">
+          ${detailHTML(r, ['Name','DisplayName','State','StartMode','Status','Signature','Publisher','Company','Version','Hash','Path'])}
+        </td>
+      </tr>
+    `;
+  }
+
+  return `
+    <tr id="${id}">
+      <td class="cb-cell">${wCheckbox}</td>
+      <td class="cb-cell">${aSelectHtml}</td>
+      <td>${esc(r.Name)}</td>
+      <td>${esc(r.DisplayName)}</td>
+      <td>${esc(r.State)}</td>
+      <td class="${statusClass(r.Status)}">${esc(r.Status)}</td>
+      <td>${esc(r.Signature)}</td>
+      <td>${esc(r.Publisher)}</td>
+      <td>${vtLink(r)}</td>
+      <td><button class="expand-btn" onclick="toggleDetail('${id}')">+</button></td>
+    </tr>
+    <tr class="detail-row" id="${id}_d">
+      <td colspan="10">
+        ${detailHTML(r, ['Name','DisplayName','State','StartMode','Status','Signature','Publisher','Company','Version','Hash','RawCommand','Path'])}
+      </td>
+    </tr>
+  `;
+}
+
+function detailHTML(r, fields) {
+  const rows = fields.map(f => {
+    let v = r[f];
+    if (v === undefined || v === null || v === '') v = '-';
+    let extraClass = '';
+    if (f === 'RawCommand' && v !== '-') extraClass = ' class="raw-cmd"';
+    return `<div class="k">${esc(f)}</div><div class="v"${extraClass}>${esc(v)}</div>`;
+  }).join('');
+  return `<div class="kv">${rows}</div>`;
+}
+
+function toggleDetail(id) {
+  const el = document.getElementById(id + '_d');
+  if (!el) return;
+  el.classList.toggle('open');
+  const btn = document.getElementById(id).querySelector('.expand-btn');
+  if (btn) btn.textContent = el.classList.contains('open') ? '−' : '+';
+}
+
+function renderSummary(tab) {
+  const suffix = tab === 'connections' ? 'Conns' : tab === 'services' ? 'Svcs' : 'Tasks';
+  const container = document.getElementById('summary' + suffix);
+  if (!container) return;
+
+  const data = state[tab].data;
+
+  const total        = data.length;
+  const normal       = data.filter(x => statusCategory(x.Status) === 'normal').length;
+  const whitelist    = data.filter(x => statusCategory(x.Status) === 'whitelist').length;
+  const toCheck      = data.filter(x => statusCategory(x.Status) === 'tocheck').length;
+  const unverifiable = data.filter(x => statusCategory(x.Status) === 'unverifiable').length;
+  const suspicious   = data.filter(x => statusCategory(x.Status) === 'suspicious').length;
+
+  let note = '';
+  if (globalFilter === 'review') {
+    note = '<span class="summary-note">(filtered)</span>';
+  }
+
+  const active = state[tab].statusFilter;
+
+  const staticCard = (value, label, colorClass) => `
+    <div class="summary-card static ${colorClass}">
+      <span class="value">${value}</span>
+      <span class="label">${label}</span>
+    </div>
+  `;
+
+  const clickableCard = (category, value, label, colorClass) => {
+    const activeClass = (active === category) ? ' active' : '';
+    return `
+      <div class="summary-card clickable ${colorClass}${activeClass}"
+           onclick="setStatusFilter('${tab}','${category}')"
+           title="Click to filter only '${label}'">
+        <span class="value">${value}</span>
+        <span class="label">${label}</span>
+      </div>
+    `;
   };
 
-  const btn = h('button', {
-    class: 'chev', type: 'button', 'aria-expanded': 'false',
-    'aria-label': 'Show details for ' + p.process + ', PID ' + p.pid,
-    onclick: e => { e.stopPropagation(); setOpen(!state.open.has(key)); },
-  });
-
-  tr.append(
-    h('td', null, badge(p)),
-    h('td', { class: 'proc' }, p.process),
-    h('td', { class: 'num mono' }, p.pid));
-  if (conn) {
-    tr.append(
-      h('td', { class: 'mono' }, item.remoteIp + ':' + item.remotePort),
-      h('td', { class: 'num mono' }, item.localPort),
-      h('td', null, p.signature));
-  } else {
-    tr.append(
-      h('td', { class: 'num' }, item.conns.length),
-      h('td', null, p.signature),
-      h('td', null, p.publisher));
-  }
-  tr.append(h('td', { class: 'chevcell' }, btn));
-  tr.addEventListener('click', () => setOpen(!state.open.has(key)));
-  return { tr, setOpen };
+  container.innerHTML = `
+    ${staticCard(total, 'Total', '')}
+    ${staticCard(normal, 'Normal', 'green')}
+    ${clickableCard('whitelist', whitelist, 'Whitelist', 'gray')}
+    ${clickableCard('tocheck', toCheck, 'To Check', 'yellow')}
+    ${clickableCard('unverifiable', unverifiable, 'Unverifiable', 'yellow')}
+    ${clickableCard('suspicious', suspicious, 'Suspicious', 'red')}
+    ${note}
+  `;
 }
 
-function renderTable() {
-  const cols = COLS[state.view];
-  const items = visibleItems();
-  const totalItems = (state.view === 'connections' ? state.conns : state.procs).length;
-  const noun = state.view === 'connections' ? 'connections' : 'processes';
-  $('#count').textContent = 'Showing ' + items.length + ' of ' + totalItems + ' ' + noun;
+// ============================================================
+// STATUS FILTER
+// ============================================================
 
-  const wrap = $('#tablewrap');
-  wrap.replaceChildren();
+function setStatusFilter(tab, category) {
+  const cfg = state[tab];
+  if (cfg.statusFilter === category) {
+    cfg.statusFilter = null;
+  } else {
+    cfg.statusFilter = category;
+  }
+  renderTab(tab);
+}
 
-  if (items.length === 0) {
-    wrap.append(h('div', { class: 'empty' },
-      h('p', null, totalItems === 0 ? 'The report contains no external connections.' : 'No rows match the current filter or search.'),
-      totalItems === 0 ? null : h('button', { class: 'btn', type: 'button', onclick: clearFilters }, 'Clear filters')));
+// ============================================================
+// SELECTION
+// ============================================================
+
+function setWhitelist(tab, rid, checked) {
+  const sel = getSel(tab, rid);
+  sel.w = checked;
+}
+
+function setAction(tab, rid, action) {
+  const sel = getSel(tab, rid);
+  sel.a = action;
+}
+
+function selectAllTab(tab) {
+  const rows = getVisibleRows(tab);
+  rows.forEach(r => {
+    if (!isToReview(r.Status)) return;
+    const rid = getRowId(tab, r);
+    const sel = getSel(tab, rid);
+    sel.w = true;
+    if (r.Type === 'Connection') sel.a = 'terminate';
+    else if (r.Type === 'Service' || r.Type === 'Task') sel.a = 'disable';
+  });
+  renderTab(tab);
+  showToast('Selected all visible elements in this tab');
+}
+
+function deselectAllTab(tab) {
+  const rows = getVisibleRows(tab);
+  rows.forEach(r => {
+    const rid = getRowId(tab, r);
+    const sel = getSel(tab, rid);
+    sel.w = false;
+    sel.a = 'none';
+  });
+  renderTab(tab);
+  showToast('Deselected all visible elements in this tab');
+}
+
+// ============================================================
+// EXPORT WHITELIST_FROM_WEB.TXT
+// ============================================================
+
+function exportWhitelistFromWeb() {
+  const lines = [];
+  const header = [];
+  header.push("# WHITELIST_FROM_WEB generato da index.html");
+  header.push("# Generato: " + new Date().toISOString());
+  header.push("# Formato HASH : SHA256|Path|Process|DateAdded");
+  header.push("# Formato NAME : NAME|Type|Path|Name|DateAdded");
+  header.push("# Istruzioni: metti questo file nella cartella dello script e lancia controllo-completo.bat");
+  header.push("");
+
+  const skipped = [];
+  let addedHash = 0;
+  let addedName = 0;
+
+  const now = new Date().toISOString().slice(0,16).replace('T',' ');
+
+  ['connections', 'services', 'tasks'].forEach(tab => {
+    state[tab].data.forEach(r => {
+      const rid = getRowId(tab, r);
+      const sel = getSel(tab, rid);
+      if (!sel.w) return;
+
+      const hasHash = r.Hash && r.Hash !== 'N/A' && r.Hash.length >= 32;
+      const hasPath = r.Path && r.Path !== 'N/A';
+
+      if (hasHash && hasPath) {
+        const line = `${r.Hash.toUpperCase()}|${r.Path}|${r.Name}|${now}`;
+        lines.push(line);
+        addedHash++;
+        return;
+      }
+
+      if (r.Type === 'Task') {
+        const taskPath = (r.DisplayName && r.DisplayName !== 'N/A') ? r.DisplayName : '\\';
+        const line = `NAME|Task|${taskPath}|${r.Name}|${now}`;
+        lines.push(line);
+        addedName++;
+        return;
+      }
+
+      if (r.Type === 'Service') {
+        const line = `NAME|Service|${r.Name}|${r.Name}|${now}`;
+        lines.push(line);
+        addedName++;
+        return;
+      }
+
+      skipped.push(`- ${r.Type}: ${r.Name} (hash mancante, non whitelistabile per nome)`);
+    });
+  });
+
+  if (addedHash === 0 && addedName === 0 && skipped.length === 0) {
+    showToast('No elements selected for whitelist');
     return;
   }
 
-  const head = h('tr', null,
-    cols.map(c => h('th', {
-      class: c.num ? 'num' : null,
-      scope: 'col',
-      'aria-sort': state.sort.key === c.key ? (state.sort.dir === 1 ? 'ascending' : 'descending') : null,
-    }, h('button', { type: 'button', onclick: () => sortBy(c.key) }, c.label))),
-    h('th', { scope: 'col' }, h('span', { class: 'sr' }, 'Details')));
+  const out = header.concat(lines).join('\n');
+  const finalOut = skipped.length > 0
+    ? out + "\n\n# === ELEMENTI SALTATI ===\n" + skipped.join('\n')
+    : out;
 
-  const body = h('tbody');
-  for (const item of items) {
-    const key = (state.view === 'connections' ? 'c' : 'p') + (state.view === 'connections' ? item.idx : item.pid);
-    const row = makeRow(item, key, cols);
-    body.append(row.tr);
-    if (state.open.has(key)) row.setOpen(true);
-  }
-  wrap.append(h('table', null, h('thead', null, head), body));
+  downloadFile('whitelist_from_web.txt', finalOut);
+  showToast(`Exported ${addedHash + addedName} elements (${addedHash} hash, ${addedName} name)`);
 }
 
-function sortBy(key) {
-  if (state.sort.key === key) state.sort.dir *= -1;
-  else state.sort = { key, dir: 1 };
-  renderTable();
-}
-function clearFilters() {
-  state.filter = 'all';
-  state.query = '';
-  $('#search').value = '';
-  renderSummary();
-  renderTable();
-}
-function setView(view) {
-  state.view = view;
-  state.sort = { key: 'severity', dir: 1 };
-  state.open = new Set();
-  syncToolbar();
-  renderTable();
-}
-function syncToolbar() {
-  $('#view-connections').setAttribute('aria-pressed', String(state.view === 'connections'));
-  $('#view-processes').setAttribute('aria-pressed', String(state.view === 'processes'));
-  const n = state.procs.filter(canWhitelist).length;
-  $('#btn-whitelist').disabled = n === 0;
-  $('#btn-whitelist').title = n === 0 ? 'No suspicious or to-check process with a readable hash in this report.' : '';
-  $('#btn-csv').disabled = state.conns.length === 0;
-}
-function renderReport() {
-  renderSummary();
-  syncToolbar();
-  renderTable();
-}
+// ============================================================
+// EXPORT REPAIR (repair.ps1 + repair.bat)
+// ============================================================
 
-/* ---------- clipboard, downloads, toast ---------- */
-let toastTimer = 0;
-function toast(msg) {
-  const t = $('#toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
-}
-function fallbackCopy(text) {
-  const ta = h('textarea', { 'aria-hidden': 'true', tabindex: '-1', style: 'position:fixed;top:-1000px;opacity:0' });
-  ta.value = text;
-  document.body.append(ta);
-  ta.select();
-  let ok = false;
-  try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-  ta.remove();
-  return ok;
-}
-async function copyText(text, msg) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast(msg);
-  } catch (e) {
-    toast(fallbackCopy(text) ? msg : 'Copy was blocked by the browser');
-  }
-}
-function download(name, text, type) {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const a = h('a', { href: url, download: name });
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-}
+function exportRepair() {
+  const actions = [];
 
-function csvCell(v) {
-  let s = String(v === null || v === undefined ? '' : v);
-  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; // stop spreadsheet formula injection
-  return '"' + s.replace(/"/g, '""') + '"';
-}
-function exportCsv() {
-  const saved = state.view;
-  state.view = 'connections';
-  const rows = visibleItems();
-  state.view = saved;
-  const head = ['Status', 'PID', 'Process', 'Remote IP', 'Remote port', 'Local port', 'Signature', 'Publisher', 'Company', 'Version', 'SHA256', 'Note', 'Path'];
-  const lines = [head.map(csvCell).join(',')];
-  for (const c of rows) {
-    lines.push([c.status, c.pid, c.process, c.remoteIp, c.remotePort, c.localPort, c.signature, c.publisher, c.company, c.version, c.hash, c.note, c.path].map(csvCell).join(','));
-  }
-  download('outbound-connections.csv', '\uFEFF' + lines.join('\r\n') + '\r\n', 'text/csv;charset=utf-8');
-  toast('CSV exported');
-}
+  ['connections', 'services', 'tasks'].forEach(tab => {
+    state[tab].data.forEach(r => {
+      const rid = getRowId(tab, r);
+      const sel = getSel(tab, rid);
+      if (sel.a === 'none') return;
 
-/* ---------- whitelist dialog ---------- */
-let wlItems = [];
-function wlRefresh() {
-  const lines = wlItems.filter(x => x.box.checked).map(x => whitelistLine(x.p));
-  $('#wl-out').value = lines.join('\n');
-  $('#wl-copy').disabled = lines.length === 0;
-  $('#wl-dl').disabled = lines.length === 0;
-}
-function openWhitelist() {
-  const list = $('#wl-list');
-  list.replaceChildren();
-  wlItems = state.procs.filter(canWhitelist).map(p => {
-    const box = h('input', { type: 'checkbox', onchange: wlRefresh });
-    list.append(h('label', null, box, h('span', null,
-      h('strong', null, p.process + ' '), h('span', { class: 'badge cat-' + p.cat.id }, p.cat.label),
-      h('span', { class: 'path mono' }, p.path))));
-    return { p, box };
-  });
-  wlRefresh();
-  $('#wl').showModal();
-}
-
-/* ---------- theme ---------- */
-const THEMES = ['auto', 'light', 'dark'];
-let theme = 'auto';
-function applyTheme(t) {
-  theme = t;
-  if (t === 'auto') document.documentElement.removeAttribute('data-theme');
-  else document.documentElement.setAttribute('data-theme', t);
-  $('#btn-theme').textContent = 'Theme: ' + t;
-}
-
-/* ---------- wiring ---------- */
-function init() {
-  try {
-    const saved = localStorage.getItem('oca-theme');
-    if (THEMES.includes(saved)) applyTheme(saved);
-  } catch (e) { /* storage may be blocked: keep auto */ }
-
-  $('#btn-theme').addEventListener('click', () => {
-    const next = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
-    applyTheme(next);
-    try { localStorage.setItem('oca-theme', next); } catch (e) { /* ignore */ }
+      actions.push({
+        Type:        r.Type,
+        Name:        r.Name,
+        DisplayName: r.DisplayName,
+        PID:         r.PID,
+        Path:        r.Path,
+        Hash:        r.Hash,
+        Action:      sel.a
+      });
+    });
   });
 
-  const input = $('#file-input');
-  const dz = $('#dropzone');
-  const choose = () => chooseFile();
-  $('#btn-choose').addEventListener('click', choose);
-  dz.addEventListener('click', choose);
-  dz.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } });
-  input.addEventListener('change', () => { const f = input.files[0]; if (f) readFile(f); input.value = ''; });
+  if (actions.length === 0) {
+    showToast('No actions selected');
+    return;
+  }
 
-  // dropping a file anywhere on the page loads it (and stops the browser from opening it)
-  window.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
-  window.addEventListener('dragleave', e => { if (!e.relatedTarget) dz.classList.remove('over'); });
-  window.addEventListener('drop', e => {
-    e.preventDefault();
-    dz.classList.remove('over');
-    const dt = e.dataTransfer;
-    const f = dt && dt.files && dt.files[0];
-    if (!f) return;
-    // Chrome/Edge: ask for a handle while the drop event is still active, so Refresh can work later
-    const item = dt.items && dt.items[0];
-    const handleRequest = (item && item.kind === 'file' && typeof item.getAsFileSystemHandle === 'function')
-      ? item.getAsFileSystemHandle() : null;
-    if (handleRequest) {
-      handleRequest
-        .then(hd => (hd && hd.kind === 'file') ? readHandle(hd, false) : readFile(f))
-        .catch(() => readFile(f));
-    } else {
-      readFile(f);
+  // Genera repair.ps1
+  const repairPs1 = generateRepairPs1(actions);
+  downloadFile('repair.ps1', repairPs1);
+
+  // Genera repair.bat (dopo un piccolo delay per non sovrapporre i download)
+  setTimeout(() => {
+    const repairBat = generateRepairBat();
+    downloadFile('repair.bat', repairBat);
+    showToast(`Generated repair.ps1 and repair.bat (${actions.length} actions)`);
+  }, 500);
+}
+
+function generateRepairPs1(actions) {
+  // Genera la stringa PowerShell dell'array $Actions
+  const lines = actions.map(a => {
+    const escape = (s) => String(s === undefined || s === null ? '' : s).replace(/'/g, "''");
+    return `    [PSCustomObject]@{ Type='${escape(a.Type)}'; Name='${escape(a.Name)}'; DisplayName='${escape(a.DisplayName)}'; PID='${escape(a.PID)}'; Path='${escape(a.Path)}'; Hash='${escape(a.Hash)}'; Action='${escape(a.Action)}' }`;
+  }).join(",\n");
+
+  return `# ============================================================
+# REPAIR SCRIPT - generated by index.html
+# Generated: ${new Date().toISOString()}
+# Actions: ${actions.length}
+# ============================================================
+# USAGE: run repair.bat as administrator
+# ============================================================
+
+# ------------------------------------------------------------
+# CONFIGURATION
+# ------------------------------------------------------------
+
+$scriptFolder = $PSScriptRoot
+if ([string]::IsNullOrWhiteSpace($scriptFolder)) {
+    $scriptFolder = (Get-Location).Path
+}
+
+$controlloCompleto = Join-Path $scriptFolder "controllo-completo.ps1"
+$logFile = Join-Path $scriptFolder ("repair-log-{0}.txt" -f (Get-Date -Format "yyyyMMdd_HHmmss"))
+
+$criticalProcesses = @(
+    "system", "idle", "registry", "smss", "csrss", "wininit",
+    "winlogon", "services", "lsass", "svchost", "explorer",
+    "dwm", "fontdrvhost", "lsm"
+)
+
+# ------------------------------------------------------------
+# ACTIONS
+# ------------------------------------------------------------
+
+$Actions = @(
+${lines}
+)
+
+# ------------------------------------------------------------
+# ADMIN CHECK
+# ------------------------------------------------------------
+
+$identity  = [Security.Principal.WindowsIdentity]::GetCurrent()
+$principal = New-Object Security.Principal.WindowsPrincipal($identity)
+$isAdmin   = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+if (-not $isAdmin) {
+    Write-Host "[!] NOT running as administrator. Some actions may fail." -ForegroundColor Yellow
+    Write-Host ""
+}
+
+# ------------------------------------------------------------
+# LOGGING
+# ------------------------------------------------------------
+
+$logLines = @()
+function Write-Log {
+    param([string]$Message, [string]$Color = "White")
+    Write-Host $Message -ForegroundColor $Color
+    $script:logLines += $Message
+}
+
+# ------------------------------------------------------------
+# HEADER
+# ------------------------------------------------------------
+
+Clear-Host
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host "   REPAIR SCRIPT" -ForegroundColor Cyan
+Write-Host "   (generated by index.html)" -ForegroundColor Cyan
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host ""
+
+Write-Log "Generated : ${new Date().toISOString()}" "DarkGray"
+Write-Log "Actions   : $($Actions.Count)" "DarkGray"
+Write-Log ""
+
+# ------------------------------------------------------------
+# ACTIONS SUMMARY
+# ------------------------------------------------------------
+
+Write-Log "------------------------------------------------------------" "Cyan"
+Write-Log " ACTIONS TO EXECUTE" "Cyan"
+Write-Log "------------------------------------------------------------" "Cyan"
+Write-Log ""
+
+$i = 0
+foreach ($a in $Actions) {
+    $i++
+    Write-Host ("  {0,3}) {1,-12} {2,-10} {3}" -f $i, $a.Action, $a.Type, $a.Name) -ForegroundColor Yellow
+    if ($a.Path -and $a.Path -ne "N/A") {
+        Write-Host ("       Path: {0}" -f $a.Path) -ForegroundColor DarkGray
     }
-  });
+}
+Write-Log ""
 
-  $('#btn-demo').addEventListener('click', () => loadText(JSON.stringify(demoReport()), 'demo', { isDemo: true, origin: 'demo' }));
-  $('#btn-load-paste').addEventListener('click', () => {
-    const t = $('#paste-text').value.trim();
-    if (!t) { showError('Paste the contents of outbound-connection-report.json first.'); return; }
-    loadText(t, 'pasted JSON', { origin: 'paste' });
-  });
-  $('#btn-new').addEventListener('click', backToLanding);
-  $('#btn-refresh').addEventListener('click', refreshReport);
+# ------------------------------------------------------------
+# EXECUTE ACTIONS
+# ------------------------------------------------------------
 
-  $('#search').addEventListener('input', e => { state.query = e.target.value.trim().toLowerCase(); renderTable(); });
-  $('#view-connections').addEventListener('click', () => setView('connections'));
-  $('#view-processes').addEventListener('click', () => setView('processes'));
-  $('#btn-csv').addEventListener('click', exportCsv);
-  $('#btn-whitelist').addEventListener('click', openWhitelist);
-
-  $('#wl-close').addEventListener('click', () => $('#wl').close());
-  $('#wl-copy').addEventListener('click', () => copyText($('#wl-out').value, 'Whitelist lines copied'));
-  $('#wl-dl').addEventListener('click', () => {
-    download('whitelist-additions.txt', $('#wl-out').value + '\r\n', 'text/plain;charset=utf-8');
-    toast('Lines downloaded');
-  });
-
-  // tell the reader up front whether "Refresh report" can work in this browser
-  const hint = $('#browser-hint');
-  if (servedLocally()) {
-    fetchNeighbour(false).catch(() => { /* no report next to the page yet: stay on the landing view */ });
-  } else if (typeof window.showOpenFilePicker !== 'function') {
-    hint.textContent = 'This browser cannot re-read a file by itself, so Refresh report will not be available. Chrome and Edge support it; elsewhere, load the file again after each scan.';
-    hint.hidden = false;
-  }
+$stats = @{
+    Terminated = 0
+    Disabled   = 0
+    Skipped    = 0
+    Errors     = 0
 }
 
-init();
+foreach ($a in $Actions) {
 
-})();
+    $label = "[$($a.Action)] $($a.Type) - $($a.Name)"
+
+    # -------- TERMINATE --------
+    if ($a.Action -eq "terminate") {
+
+        if ($a.Type -ne "Connection") {
+            Write-Log "[SKIPPED] $label : 'terminate' only for Connection" "Yellow"
+            $stats.Skipped++
+            continue
+        }
+
+        $procId = 0
+        if (-not [int]::TryParse($a.PID, [ref]$procId)) {
+            Write-Log "[SKIPPED] $label : invalid PID" "Yellow"
+            $stats.Skipped++
+            continue
+        }
+
+        if (($procId -eq $PID) -or (@(0,4) -contains $procId)) {
+            Write-Log "[SKIPPED] $label : protected process" "Yellow"
+            $stats.Skipped++
+            continue
+        }
+
+        if ($a.Path -and $a.Path -ne "N/A") {
+            $sys32 = ($env:windir + "\\system32\\").ToLowerInvariant()
+            if (($criticalProcesses -contains $a.Name.ToLowerInvariant()) -and $a.Path.ToLowerInvariant().StartsWith($sys32)) {
+                Write-Log "[SKIPPED] $label : critical system process" "Yellow"
+                $stats.Skipped++
+                continue
+            }
+        }
+
+        $currentCim = Get-CimInstance Win32_Process -Filter "ProcessId=$procId" -ErrorAction SilentlyContinue
+        if (-not $currentCim) {
+            Write-Log "[ALREADY ENDED] $label" "DarkGray"
+            $stats.Skipped++
+            continue
+        }
+
+        if ($a.Path -and $a.Path -ne "N/A") {
+            if (-not $currentCim.ExecutablePath -or ($currentCim.ExecutablePath -ne $a.Path)) {
+                Write-Log "[SKIPPED] $label : PID now belongs to another program" "Yellow"
+                $stats.Skipped++
+                continue
+            }
+        }
+
+        try {
+            Stop-Process -Id $procId -Force -ErrorAction Stop
+            Start-Sleep -Milliseconds 400
+            Write-Log "[TERMINATED] $label" "Green"
+            $stats.Terminated++
+        } catch {
+            Write-Log "[ERROR] $label : $($_.Exception.Message)" "Red"
+            $stats.Errors++
+        }
+        continue
+    }
+
+    # -------- DISABLE --------
+    if ($a.Action -eq "disable") {
+
+        if ($a.Type -eq "Service") {
+            try {
+                $svc = Get-Service -Name $a.Name -ErrorAction SilentlyContinue
+                if (-not $svc) {
+                    Write-Log "[SKIPPED] $label : service not found" "Yellow"
+                    $stats.Skipped++
+                    continue
+                }
+                Stop-Service -Name $a.Name -Force -ErrorAction SilentlyContinue
+                Set-Service  -Name $a.Name -StartupType Disabled -ErrorAction Stop
+                Write-Log "[DISABLED] $label" "Green"
+                $stats.Disabled++
+            } catch {
+                Write-Log "[ERROR] $label : $($_.Exception.Message)" "Red"
+                $stats.Errors++
+            }
+            continue
+        }
+
+        if ($a.Type -eq "Task") {
+            try {
+                $task = Get-ScheduledTask -TaskName $a.Name -TaskPath $a.DisplayName -ErrorAction SilentlyContinue
+                if (-not $task) {
+                    Write-Log "[SKIPPED] $label : task not found" "Yellow"
+                    $stats.Skipped++
+                    continue
+                }
+                Disable-ScheduledTask -TaskName $a.Name -TaskPath $a.DisplayName -ErrorAction Stop | Out-Null
+                Write-Log "[DISABLED] $label" "Green"
+                $stats.Disabled++
+            } catch {
+                Write-Log "[ERROR] $label : $($_.Exception.Message)" "Red"
+                $stats.Errors++
+            }
+            continue
+        }
+
+        Write-Log "[SKIPPED] $label : 'disable' not applicable to $($a.Type)" "Yellow"
+        $stats.Skipped++
+        continue
+    }
+
+    Write-Log "[SKIPPED] $label : unknown action '$($a.Action)'" "Yellow"
+    $stats.Skipped++
+}
+
+# ------------------------------------------------------------
+# SUMMARY
+# ------------------------------------------------------------
+
+Write-Log ""
+Write-Log "============================================================" "Cyan"
+Write-Log " SUMMARY" "Cyan"
+Write-Log "============================================================" "Cyan"
+Write-Log ""
+Write-Log ("  Terminated : {0}" -f $stats.Terminated) "Green"
+Write-Log ("  Disabled   : {0}" -f $stats.Disabled)   "Green"
+Write-Log ("  Skipped    : {0}" -f $stats.Skipped)    "Yellow"
+Write-Log ("  Errors     : {0}" -f $stats.Errors)     "Red"
+Write-Log ""
+
+try {
+    $logLines | Out-File -FilePath $logFile -Encoding UTF8
+    Write-Log "Log saved: $logFile" "DarkGray"
+} catch {
+    Write-Log "[WARNING] Could not save log: $($_.Exception.Message)" "Yellow"
+}
+
+# ------------------------------------------------------------
+# RELAUNCH controllo-completo.ps1
+# ------------------------------------------------------------
+
+Write-Log ""
+Write-Log "============================================================" "Cyan"
+Write-Log " RELAUNCHING controllo-completo.ps1" "Cyan"
+Write-Log "============================================================" "Cyan"
+Write-Log ""
+
+if (Test-Path -LiteralPath $controlloCompleto) {
+    try {
+        # Lancia come processo figlio, aspettando la fine
+        $p = Start-Process -FilePath "powershell.exe" \`
+            -ArgumentList "-ExecutionPolicy Bypass -NoProfile -File \`"$controlloCompleto\`"" \`
+            -Wait -PassThru -NoNewWindow
+        Write-Log "controllo-completo.ps1 finished (exit code: $($p.ExitCode))" "Green"
+    } catch {
+        Write-Log "[ERROR] Could not launch controllo-completo.ps1: $($_.Exception.Message)" "Red"
+    }
+} else {
+    Write-Log "[WARNING] controllo-completo.ps1 not found in: $scriptFolder" "Yellow"
+}
+
+Write-Log ""
+Write-Log "============================================================" "Cyan"
+Write-Log " Repair complete." "Green"
+Write-Log "============================================================" "Cyan"
+Write-Log ""
+`;
+}
+
+function generateRepairBat() {
+  return `@echo off
+cd /d "%~dp0"
+
+rem ------------------------------------------------------------
+rem Check administrator privileges
+rem ------------------------------------------------------------
+fltmc >nul 2>&1
+if errorlevel 1 (
+    echo.
+    echo ============================================================
+    echo   WARNING: script NOT running as administrator.
+    echo.
+    echo   To run it correctly: right-click this file, then
+    echo   "Run as administrator".
+    echo ============================================================
+    echo.
+    pause
+    exit /b 1
+)
+
+powershell -ExecutionPolicy Bypass -File "%~dp0repair.ps1"
+exit /b 0
+`;
+}
+
+// ============================================================
+// DOWNLOAD HELPER
+// ============================================================
+
+function downloadFile(name, content) {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// FILTERS AND SORT
+// ============================================================
+
+function setupFilters() {
+  document.getElementById('filterConns').addEventListener('input', e => {
+    state.connections.filter = e.target.value;
+    renderTab('connections');
+  });
+  document.getElementById('filterSvcs').addEventListener('input', e => {
+    state.services.filter = e.target.value;
+    renderTab('services');
+  });
+  document.getElementById('filterTasks').addEventListener('input', e => {
+    state.tasks.filter = e.target.value;
+    renderTab('tasks');
+  });
+}
+
+function setupSort() {
+  ['tableConns', 'tableSvcs', 'tableTasks'].forEach(tableId => {
+    const tab = tableId === 'tableConns' ? 'connections'
+              : tableId === 'tableSvcs'  ? 'services'
+              : 'tasks';
+    document.querySelectorAll(`#${tableId} th[data-sort]`).forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.sort;
+        const cfg = state[tab].sort;
+        if (cfg.key === key) {
+          cfg.dir = cfg.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+          cfg.key = key;
+          cfg.dir = 'asc';
+        }
+        document.querySelectorAll(`#${tableId} th .sort-arrow`).forEach(a => a.textContent = '');
+        th.querySelector('.sort-arrow').textContent = cfg.dir === 'asc' ? '▲' : '▼';
+        renderTab(tab);
+      });
+    });
+  });
+}
+
+// ============================================================
+// TABS
+// ============================================================
+
+function setupTabs() {
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+}
+
+function setGlobalFilter(mode) {
+  globalFilter = mode;
+  document.getElementById('btnOnlyReview').classList.toggle('active', mode === 'review');
+  document.getElementById('btnShowAll').classList.toggle('active', mode === 'all');
+  renderAll();
+}
+
+// ============================================================
+// EXPORT CSV
+// ============================================================
+
+function exportCSV(tab) {
+  const data = state[tab].data;
+  if (!data.length) { alert('No data to export'); return; }
+
+  const keys = Object.keys(data[0]);
+  const csv = [
+    keys.join(','),
+    ...data.map(row => keys.map(k => `"${String(row[k] ?? '').replace(/"/g, '""')}"`).join(','))
+  ].join('\n');
+
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${tab}-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+
+setupTabs();
+setupFilters();
+setupSort();
 </script>
 </body>
 </html>
